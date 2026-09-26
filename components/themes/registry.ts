@@ -14,7 +14,7 @@ import type {
 // Dumb lookup table: themeSlug -> dynamic import of the theme's whole module.
 // Keep it dumb — see storefront-multi-theme-architecture.md §4 on why this
 // stays a plain object instead of growing into a plugin system.
-export type ThemeSlug = "theme_one" | "spark";
+export type ThemeSlug = "spark";
 
 export type ThemeModule = typeof import("./theme_one");
 
@@ -133,10 +133,13 @@ export type ResolvedThemeModule = ThemeModule & {
 };
 
 export const themeRegistry: Record<ThemeSlug, () => Promise<PartialThemeModule>> = {
-    theme_one: () => import("./theme_one"),
     spark: () => import("./spark"),
 };
 
-export function isKnownThemeSlug(slug: string): slug is ThemeSlug {
-    return slug in themeRegistry;
-}
+// To add a theme: add its slug to ThemeSlug and an entry here. A store selects
+// a theme via its Theme document's templateId (see resolveThemeSlug).
+
+// theme_one is not a selectable theme — its module is only the component
+// baseline loadTheme() merges the selected theme onto, for anything that theme
+// hasn't built yet.
+export const loadBaseThemeModule = (): Promise<ThemeModule> => import("./theme_one");

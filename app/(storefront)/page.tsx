@@ -45,7 +45,25 @@ async function getHomeData() {
 export async function generateMetadata(): Promise<Metadata> {
     const data = await getHomeData();
     const storeName = data?.theme?.navbar?.title || data?.theme?.footer?.title || data?.shop?.shopName || "Store";
-    return { title: storeName };
+    const seo = data?.shop?.settings?.seo;
+
+    const title = seo?.homepageTitle || storeName;
+    const description = seo?.homepageDescription;
+    const allowIndexing = seo?.allowIndexing !== false;
+
+    return {
+        title,
+        description,
+        openGraph: {
+            title,
+            description,
+            images: seo?.socialShareImageUrl ? [{ url: seo.socialShareImageUrl }] : undefined,
+        },
+        robots: {
+            index: allowIndexing,
+            follow: allowIndexing,
+        },
+    };
 }
 
 export default async function HomePage() {

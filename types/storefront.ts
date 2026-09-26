@@ -122,6 +122,12 @@ export interface ShopIdentity {
             shiprocket?: { enabled?: boolean };
             manualShipping?: { global?: boolean; shippingRate?: number };
         };
+        seo?: {
+            homepageTitle?: string;
+            homepageDescription?: string;
+            socialShareImageUrl?: string;
+            allowIndexing?: boolean;
+        };
     };
 }
 

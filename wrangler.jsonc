@@ -53,6 +53,14 @@
 	// *.fypestore.com/* is the per-store production wildcard, mirroring staging's
 	// *.test.fypestore.com/* — every store's own subdomain (e.g. somestore.fypestore.com)
 	// resolves here automatically, no per-store route needed.
+	//
+	// */* catches merchant custom hostnames (Cloudflare for SaaS, e.g. www.shop.com):
+	// their Host isn't under fypestore.com, so no pattern above matches them and
+	// Cloudflare would go to the fallback origin's own server instead (522). See
+	// https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/start/advanced-settings/worker-as-origin/
+	// The most specific route wins, so staging's *.test.fypestore.com/* and the
+	// zone's exclusion routes (Worker: None, e.g. api.fypestore.com/*) still apply.
+	// Production only — staging declares its own routes and must never get */*.
 	"routes": [
 		{
 			"pattern": "shops.fypestore.com/*",
@@ -60,6 +68,10 @@
 		},
 		{
 			"pattern": "*.fypestore.com/*",
+			"zone_name": "fypestore.com"
+		},
+		{
+			"pattern": "*/*",
 			"zone_name": "fypestore.com"
 		}
 	],
@@ -94,10 +106,15 @@
 					"zone_name": "fypestore.com"
 				}
 			],
+			// Staging's own tenant cache, so staging never reads or writes production's
+			// tenant:<domain> entries. Create it with:
+			//   npx wrangler kv namespace create FYPE_TENANT_CACHE_STAGING
+			// and replace the placeholder below with the id it prints. Staging deploys
+			// fail until this is done.
 			"kv_namespaces": [
 				{
 					"binding": "FYPE_TENANT_CACHE",
-					"id": "55ab9eaeeee0478494db64b87b26389e"
+					"id": "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
 				}
 			],
 			"services": [

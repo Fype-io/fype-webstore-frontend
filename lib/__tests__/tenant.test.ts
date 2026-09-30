@@ -109,11 +109,27 @@ describe("resolveTenant", () => {
         expect(await resolveTenant(DOMAIN)).toEqual({ status: "unavailable" });
     });
 
-    it("on another 4xx, returns not_found without falling back or deleting", async () => {
-        fetchMock.mockResolvedValue(jsonResponse(400, { success: false }));
+    it.each([429, 408, 400, 403])("on a %i, falls back to the KV entry like a 5xx and doesn't delete it", async (status) => {
+        fetchMock.mockResolvedValue(jsonResponse(status, { success: false }));
 
-        expect(await resolveTenant(DOMAIN)).toEqual({ status: "not_found" });
-        expect(kv.get).not.toHaveBeenCalled();
+        const result = await resolveTenant(DOMAIN);
+
+        expect(result).toEqual({ status: "found", tenant: CACHED });
+        expect(kv.get).toHaveBeenCalledWith(`tenant:${DOMAIN}`, "json");
+        expect(kv.delete).not.toHaveBeenCalled();
+    });
+
+    it("on a 429 with nothing in KV, returns unavailable (not not_found)", async () => {
+        fetchMock.mockResolvedValue(jsonResponse(429, { success: false }));
+        kv.get.mockResolvedValue(null);
+
+        expect(await resolveTenant(DOMAIN)).toEqual({ status: "unavailable" });
+    });
+
+    it("on a 2xx without a shop, falls back to the KV entry", async () => {
+        fetchMock.mockResolvedValue(jsonResponse(200, { success: true, data: {} }));
+
+        expect(await resolveTenant(DOMAIN)).toEqual({ status: "found", tenant: CACHED });
         expect(kv.delete).not.toHaveBeenCalled();
     });
 });

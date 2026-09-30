@@ -152,8 +152,8 @@ curl -sS -D - "https://api.fypestore.com/api/v1/commerce/shops/by-domain?domain=
 curl -sS -D - "https://test-api.fypestore.com/api/v1/commerce/shops/by-domain?domain=nonexistent.example" | grep -iE "^(HTTP|x-opennext)|success"
 
 # Platform hosts: still the Worker (x-opennext: 1)
-curl -sSI https://shops.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"
-curl -sSI https://themes.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"
+curl -sSI https://shops.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"    # before: 200; after: 404 "Store not found", x-opennext: 1
+curl -sSI https://themes.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"   # before: 200; after: 404 "Store not found", x-opennext: 1
 curl -sS -o /dev/null -w "%{http_code}\n" https://themes.fypestore.com/theme-preview/spark   # 200
 curl -sSI https://test-shops.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"
 curl -sSI https://<store>.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"                   # a real live store: 200
@@ -161,11 +161,24 @@ curl -sSI https://<store>.fypestore.com/ | grep -iE "^(HTTP|x-opennext)"        
 
 Expected status changes from `3af02af` (production Worker only, not caused by `*/*`):
 
-- `shops.fypestore.com/` and `themes.fypestore.com/` show "Store not found" with **200** today,
-  and **404** after (same page, no redirect). Any other path on a host with no store changes the
-  same way.
+| URL | Before | After |
+|---|---|---|
+| `https://shops.fypestore.com/` | 200, "Store not found" page | **404**, "Store not found" page, `x-opennext: 1`, `cache-control: no-store`, no redirect |
+| `https://themes.fypestore.com/` | 200, "Store not found" page | **404**, same as above |
+| `https://fypestore.com/` | 301 → `themes.fypestore.com/` | 301 → `themes.fypestore.com/` (which now answers 404) |
+| `https://themes.fypestore.com/theme-preview/spark` | 200 | 200 |
+| `https://test-shops.fypestore.com/` | 200 | 200 (staging Worker, not redeployed) |
+
+- Any other path on a host with no store changes the same way (404 instead of 200).
 - `/theme-preview/*` and `/api/*` are unaffected.
-- `test-shops.` is served by the staging Worker, which isn't redeployed, so it stays **200**.
+- The 404 is correct: no store owns those hosts. Only the status code changes; the page text is
+  the same.
+
+> **Uptime monitors:** point them at a real store's URL (e.g. `https://<store>.fypestore.com/`,
+> expected 200), not at the bare `shops.` or `themes.` root. Those roots now answer 404 by design,
+> so a monitor on them would alert constantly. A monitor that only checks "is the Worker up" can
+> use `https://themes.fypestore.com/theme-preview/spark` instead. Update any existing monitor on
+> those roots **before** deploying.
 
 Anything else that differs from the "before" output is a problem: roll back.
 

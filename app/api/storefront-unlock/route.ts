@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { STOREFRONT_UNLOCK_COOKIE } from "@/lib/storefront-gate";
+import { getRequestHost } from "@/lib/request-host";
 
 export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => null)) as { password?: string; returnTo?: string } | null;
@@ -10,8 +11,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: "Password is required" }, { status: 400 });
     }
 
-    const host = request.headers.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(request.headers);
 
     let apiBaseUrl: string;
     try {

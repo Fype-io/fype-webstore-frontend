@@ -13,6 +13,7 @@ import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import type { ProductSortBy } from "@/types/storefront";
 import { mergeSparkConfig, sparkDefaultConfig } from "@/components/themes/spark/sparkConfig";
+import { getRequestHost } from "@/lib/request-host";
 
 interface ProductsPageProps {
     searchParams: Promise<{
@@ -27,8 +28,7 @@ interface ProductsPageProps {
 
 async function getSharedShopData() {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);

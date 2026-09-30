@@ -6,6 +6,7 @@ import { getApiBaseUrl, getShopByDomain, getTheme } from "@/lib/storefront-api";
 import { enforceStorefrontPassword } from "@/lib/enforce-storefront-password";
 import Providers from "@/components/shared/Providers";
 import EditorPreviewNavigationLock from "@/components/shared/EditorPreviewNavigationLock";
+import { getRequestHost } from "@/lib/request-host";
 
 // Same validation the SPA used (App.tsx) before building either script — only
 // a plausible pixel/container id ever gets interpolated into injected JS.
@@ -14,8 +15,7 @@ const GTM_CONTAINER_ID_PATTERN = /^GTM-[A-Z0-9]{4,10}$/;
 
 export async function generateMetadata(): Promise<Metadata> {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);
 
@@ -38,8 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
     const headerThemeId = headersList.get("x-theme-id");
 
     const apiBaseUrl = await getApiBaseUrl();

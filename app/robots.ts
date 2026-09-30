@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { getApiBaseUrl, getShopByDomain } from "@/lib/storefront-api";
+import { getRequestHost } from "@/lib/request-host";
 
 // Per-tenant robots.txt — domain is resolved from the request host, same as
 // the homepage's getHomeData(). Calling headers() opts this route into
@@ -9,7 +10,7 @@ import { getApiBaseUrl, getShopByDomain } from "@/lib/storefront-api";
 export default async function robots(): Promise<MetadataRoute.Robots> {
     const headersList = await headers();
     const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
     const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
     const baseUrl = `${protocol}://${host}`;
 

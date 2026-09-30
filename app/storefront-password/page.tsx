@@ -3,11 +3,11 @@ import { headers } from "next/headers";
 import { getApiBaseUrl, getShopByDomain } from "@/lib/storefront-api";
 import StorefrontPasswordForm from "./StorefrontPasswordForm";
 import "../(checkout)/checkout.css";
+import { getRequestHost } from "@/lib/request-host";
 
 export default async function StorefrontPasswordPage() {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);
 

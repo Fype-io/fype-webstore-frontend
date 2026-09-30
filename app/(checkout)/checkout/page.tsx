@@ -5,13 +5,13 @@ import { getApiBaseUrl, getShopByDomain } from "@/lib/storefront-api";
 import { resolveActiveGateways } from "@/hooks/useActiveGateways";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import CheckoutView from "@/components/checkout/CheckoutView";
+import { getRequestHost } from "@/lib/request-host";
 
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage() {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);

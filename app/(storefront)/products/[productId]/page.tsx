@@ -10,6 +10,7 @@ import {
 } from "@/lib/storefront-api";
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
+import { getRequestHost } from "@/lib/request-host";
 
 interface ProductDetailsPageProps {
     params: Promise<{ productId: string }>;
@@ -42,8 +43,7 @@ function placeholderProductDetail() {
 
 async function getSharedShopData() {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);

@@ -12,11 +12,11 @@ import {
 import { resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import ThemedHome from "@/components/themes/ThemedHome";
+import { getRequestHost } from "@/lib/request-host";
 
 async function getHomeData() {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);

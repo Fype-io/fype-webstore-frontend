@@ -3,14 +3,14 @@ import { getApiBaseUrl, getShopByDomain } from "@/lib/storefront-api";
 import { enforceStorefrontPassword } from "@/lib/enforce-storefront-password";
 import Providers from "@/components/shared/Providers";
 import "./checkout.css";
+import { getRequestHost } from "@/lib/request-host";
 
 // Minimal shell, deliberately not routed through the theme registry — checkout
 // is one canonical flow shared by every theme/store. Branding lives in the
 // Generic-UI checkout header (back + title), not a second store chrome bar.
 export default async function CheckoutLayout({ children }: { children: React.ReactNode }) {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
-    const domain = host.split(":")[0];
+    const domain = getRequestHost(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);

@@ -20,7 +20,7 @@ export interface PaymentMethodOption {
 }
 
 export interface GatewayOrderRef {
-    // Smallest currency unit (paise). Only sent so an older backend keeps working
+    // Smallest unit of the store's currency. Only sent so an older backend keeps working
     // during the rollout: the backend now prices the checkout itself and ignores
     // it, and the gateway is opened with the amount the backend returns.
     amount: number;

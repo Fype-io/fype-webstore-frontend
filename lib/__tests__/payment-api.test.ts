@@ -50,8 +50,12 @@ describe("createGatewayOrder", () => {
 });
 
 describe("payButtonLabel", () => {
-    it("shows the amount the backend priced", () => {
+    it("shows the amount the backend priced, in the store's currency and format", () => {
         expect(payButtonLabel(51198, "inr")).toBe("Pay ₹511.98");
+        expect(payButtonLabel(12345678, "INR")).toBe("Pay ₹1,23,456.78");
+        expect(payButtonLabel(12345678, "USD")).toBe("Pay $123,456.78");
+        // Intl separates "AED" from the number with a non-breaking space.
+        expect(payButtonLabel(12345678, "aed")).toMatch(/^Pay AED\s123,456\.78$/);
     });
 
     it("falls back to plain Pay for unusable input", () => {

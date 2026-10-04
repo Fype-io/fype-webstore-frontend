@@ -24,12 +24,18 @@ const STRIPE_METHODS: PaymentMethodOption[] = [
  * the plain-JS equivalent of Razorpay's own modal, not a redirect flow) and
  * resolves once the customer completes or cancels payment.
  */
-/** "Pay ₹511.98": the amount the backend priced, so the customer sees what they'll be charged. */
+// Store currencies (one per store, set by the merchant) and how each displays.
+// Minor-unit digits come from Intl for the currency rather than an assumed 2.
+const CURRENCY_LOCALE: Record<string, string> = { INR: "en-IN", USD: "en-US", AED: "en-AE" };
+
+/** "Pay ₹511.98" / "Pay $511.98" / "Pay AED 511.98": the amount the backend priced, in the store's currency. */
 export function payButtonLabel(amountMinor: number, currency: string): string {
     if (!Number.isFinite(amountMinor) || !currency) return "Pay";
+    const code = currency.toUpperCase();
     try {
-        const formatted = new Intl.NumberFormat("en-IN", { style: "currency", currency: currency.toUpperCase() }).format(amountMinor / 100);
-        return `Pay ${formatted}`;
+        const format = new Intl.NumberFormat(CURRENCY_LOCALE[code] ?? "en-US", { style: "currency", currency: code });
+        const digits = format.resolvedOptions().maximumFractionDigits ?? 2;
+        return `Pay ${format.format(amountMinor / 10 ** digits)}`;
     } catch {
         return "Pay";
     }

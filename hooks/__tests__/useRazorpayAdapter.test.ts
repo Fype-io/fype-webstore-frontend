@@ -13,6 +13,8 @@ vi.mock("@/lib/payment-api", () => ({
 // shape preserved behavior: same script-ready polling, same options shape
 // passed to window.Razorpay, same createGatewayOrder/verifyGatewayPayment calls.
 
+const SHIPPING = { fullName: "Test User", addressLine1: "1 Test Street", city: "Kochi", state: "Kerala", postalCode: "682001", country: "India" };
+
 describe("useRazorpayAdapter", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -49,7 +51,7 @@ describe("useRazorpayAdapter", () => {
         const { result } = renderHook(() => useRazorpayAdapter({ storeId: "store-1" }));
 
         await expect(
-            result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } })
+            result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } })
         ).rejects.toThrow("Razorpay SDK not loaded");
         expect(createGatewayOrder).not.toHaveBeenCalled();
     });
@@ -77,12 +79,13 @@ describe("useRazorpayAdapter", () => {
 
         const openPromise = result.current.open({
             amount: 10000,
+            shippingAddress: SHIPPING,
             userDetails: { name: "Test User", email: "test@example.com", phone: "9999999999" },
             methodId: "razorpay_upi",
         });
 
         await waitFor(() => expect(capturedOptions).toBeDefined());
-        expect(createGatewayOrder).toHaveBeenCalledWith("store-1", "razorpay", 10000);
+        expect(createGatewayOrder).toHaveBeenCalledWith("store-1", "razorpay", { amount: 10000, shippingAddress: SHIPPING });
         expect(capturedOptions.key).toBe("rzp_test_key1");
         expect(capturedOptions.amount).toBe(10000);
         expect(capturedOptions.order_id).toBe("order_abc1");
@@ -128,7 +131,7 @@ describe("useRazorpayAdapter", () => {
         const { result } = renderHook(() => useRazorpayAdapter({ storeId: "store-1" }));
         await waitFor(() => expect(result.current.isReady).toBe(true));
 
-        const openPromise = result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } });
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
         const settled = openPromise.catch((e) => e); // mark as handled immediately, assert below
         await waitFor(() => expect(capturedOptions).toBeDefined());
 
@@ -157,7 +160,7 @@ describe("useRazorpayAdapter", () => {
         const { result } = renderHook(() => useRazorpayAdapter({ storeId: "store-1" }));
         await waitFor(() => expect(result.current.isReady).toBe(true));
 
-        const openPromise = result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } });
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
         const settled = openPromise.catch((e) => e); // mark as handled immediately, assert below
         await waitFor(() => expect(capturedOptions).toBeDefined());
 

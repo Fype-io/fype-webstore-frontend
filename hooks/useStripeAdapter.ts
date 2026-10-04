@@ -24,7 +24,18 @@ const STRIPE_METHODS: PaymentMethodOption[] = [
  * the plain-JS equivalent of Razorpay's own modal, not a redirect flow) and
  * resolves once the customer completes or cancels payment.
  */
-function collectStripePayment(stripe: Stripe, clientSecret: string): Promise<{ paymentIntentId: string } | null> {
+/** "Pay ₹511.98": the amount the backend priced, so the customer sees what they'll be charged. */
+export function payButtonLabel(amountMinor: number, currency: string): string {
+    if (!Number.isFinite(amountMinor) || !currency) return "Pay";
+    try {
+        const formatted = new Intl.NumberFormat("en-IN", { style: "currency", currency: currency.toUpperCase() }).format(amountMinor / 100);
+        return `Pay ${formatted}`;
+    } catch {
+        return "Pay";
+    }
+}
+
+function collectStripePayment(stripe: Stripe, clientSecret: string, payLabel = "Pay"): Promise<{ paymentIntentId: string } | null> {
     return new Promise((resolve, reject) => {
         const overlay = document.createElement("div");
         overlay.style.cssText =
@@ -33,7 +44,7 @@ function collectStripePayment(stripe: Stripe, clientSecret: string): Promise<{ p
         modal.style.cssText = "background:#fff;border-radius:16px;padding:24px;width:100%;max-width:420px;";
         const paymentElementContainer = document.createElement("div");
         const payButton = document.createElement("button");
-        payButton.textContent = "Pay";
+        payButton.textContent = payLabel;
         payButton.style.cssText =
             "width:100%;margin-top:16px;padding:12px;background:#000;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;";
         const cancelButton = document.createElement("button");
@@ -95,12 +106,16 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
             }
             setIsLoading(true);
             try {
-                const orderData = await createGatewayOrder(storeId, "stripe", orderRef.amount);
+                const orderData = await createGatewayOrder(storeId, "stripe", {
+                    amount: orderRef.amount,
+                    shippingAddress: orderRef.shippingAddress,
+                    ...(orderRef.billingAddress ? { billingAddress: orderRef.billingAddress } : {}),
+                });
                 if (!orderData || !orderData.clientSecret) {
                     throw new Error("Failed to create payment order");
                 }
 
-                const result = await collectStripePayment(stripe, orderData.clientSecret);
+                const result = await collectStripePayment(stripe, orderData.clientSecret, payButtonLabel(orderData.amount, orderData.currency));
                 if (!result) {
                     throw new Error("Payment cancelled");
                 }

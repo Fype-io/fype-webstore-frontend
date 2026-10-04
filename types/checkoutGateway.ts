@@ -20,7 +20,13 @@ export interface PaymentMethodOption {
 }
 
 export interface GatewayOrderRef {
-    amount: number; // smallest currency unit (paise), same convention openRazorpay always used
+    // Smallest currency unit (paise). Only sent so an older backend keeps working
+    // during the rollout: the backend now prices the checkout itself and ignores
+    // it, and the gateway is opened with the amount the backend returns.
+    amount: number;
+    // The address the order ships to; the backend charges shipping for it.
+    shippingAddress: Record<string, unknown>;
+    billingAddress?: Record<string, unknown>;
     userDetails: { name: string; email?: string; phone: string };
     methodId?: string;
 }

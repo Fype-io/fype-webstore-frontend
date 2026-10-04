@@ -243,8 +243,14 @@ export default function CheckoutView({
         }
 
         try {
+            if (!selectedAddress) {
+                setOrderError("Choose a shipping address before paying.");
+                return;
+            }
             const { gatewayRef } = await adapter.open({
-                amount: totalAmount * 100,
+                amount: Math.round(totalAmount * 100),
+                shippingAddress: selectedAddress as unknown as Record<string, unknown>,
+                billingAddress: selectedAddress as unknown as Record<string, unknown>,
                 userDetails: { name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Customer", email: user.email || "", phone: user.phone || "" },
                 methodId: method,
             });

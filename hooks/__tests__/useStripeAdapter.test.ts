@@ -27,6 +27,11 @@ function mockStripeInstance(overrides: Partial<{ confirmPayment: any }> = {}) {
     };
 }
 
+const SHIPPING = { fullName: "Test User", addressLine1: "1 Test Street", city: "Kochi", state: "Kerala", postalCode: "682001", country: "India" };
+
+// amount 10000 (minor units) in INR, as the backend returns it.
+const PAY_LABEL = "Pay ₹100.00";
+
 describe("useStripeAdapter", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -56,7 +61,7 @@ describe("useStripeAdapter", () => {
         const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: undefined }));
 
         await expect(
-            result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } })
+            result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } })
         ).rejects.toThrow("Stripe SDK not loaded");
         expect(createGatewayOrder).not.toHaveBeenCalled();
     });
@@ -79,16 +84,16 @@ describe("useStripeAdapter", () => {
         // Pay button's click handler directly to simulate the customer
         // completing the form, since the button is injected into
         // document.body by open() before the customer would click it.
-        const openPromise = result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } });
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
         await waitFor(() => {
             const buttons = Array.from(document.body.querySelectorAll("button"));
-            expect(buttons.some((b) => b.textContent === "Pay")).toBe(true);
+            expect(buttons.some((b) => b.textContent === PAY_LABEL)).toBe(true);
         });
-        const payButton = Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === "Pay")!;
+        const payButton = Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === PAY_LABEL)!;
         payButton.click();
 
         const openResult = await openPromise;
-        expect(createGatewayOrder).toHaveBeenCalledWith("store-1", "stripe", 10000);
+        expect(createGatewayOrder).toHaveBeenCalledWith("store-1", "stripe", { amount: 10000, shippingAddress: SHIPPING });
         expect(verifyGatewayPayment).toHaveBeenCalledWith("store-1", "stripe", { paymentIntentId: "pi_mock1" });
         expect(openResult.gatewayRef).toEqual({ paymentIntentId: "pi_mock1" });
         // The overlay must be cleaned up from the DOM after completion.
@@ -107,7 +112,7 @@ describe("useStripeAdapter", () => {
         const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: "pk_test_abc" }));
         await waitFor(() => expect(result.current.isReady).toBe(true));
 
-        const openPromise = result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } });
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
         const settled = openPromise.catch((e) => e);
         await waitFor(() => {
             const buttons = Array.from(document.body.querySelectorAll("button"));
@@ -133,13 +138,13 @@ describe("useStripeAdapter", () => {
         const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: "pk_test_abc" }));
         await waitFor(() => expect(result.current.isReady).toBe(true));
 
-        const openPromise = result.current.open({ amount: 10000, userDetails: { name: "Test User", phone: "9999999999" } });
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
         const settled = openPromise.catch((e) => e);
         await waitFor(() => {
             const buttons = Array.from(document.body.querySelectorAll("button"));
-            expect(buttons.some((b) => b.textContent === "Pay")).toBe(true);
+            expect(buttons.some((b) => b.textContent === PAY_LABEL)).toBe(true);
         });
-        const payButton = Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === "Pay")!;
+        const payButton = Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === PAY_LABEL)!;
         payButton.click();
 
         await expect(settled).resolves.toEqual(new Error("Your card was declined."));

@@ -39,6 +39,8 @@ export default async function CheckoutPage() {
                 hasManualShipping={hasManualShipping}
                 activeGateways={activeGateways}
                 stripePublishableKey={shop.settings?.payment?.stripe?.publishableKey}
+                cod={shop.settings?.payment?.cod}
+                currency={shop.settings?.currency}
             />
         </>
     );

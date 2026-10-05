@@ -37,6 +37,37 @@ export function formatInr(amount: number): string {
     return `₹${Math.round(amount).toLocaleString("en-IN")}`;
 }
 
+// Cash on delivery as the store set it (public settings payment.cod). enabled
+// null/undefined: never saved - the legacy rule applies (COD only when no
+// online gateway is active). A minimum order value hides COD below it.
+export interface CodSetting {
+    enabled?: boolean | null;
+    minOrderValue?: number | null;
+}
+
+export function codAvailability(cod: CodSetting | undefined, hasPaymentGateway: boolean, total: number): { offered: boolean; minimum: number | null } {
+    const enabled = cod?.enabled;
+    if (enabled === false) return { offered: false, minimum: null };
+    if (enabled !== true) return { offered: !hasPaymentGateway, minimum: null };
+    const min = typeof cod?.minOrderValue === "number" && cod.minOrderValue > 0 ? cod.minOrderValue : null;
+    if (min !== null && total < min) return { offered: false, minimum: min };
+    return { offered: true, minimum: null };
+}
+
+export const PAYMENTS_UNAVAILABLE_MESSAGE = "This store isn't accepting payments right now. Please contact the store.";
+
+const CURRENCY_LOCALE: Record<string, string> = { INR: "en-IN", USD: "en-US", AED: "en-AE" };
+
+/** An amount in the store's currency ("₹500", "$25", "AED 100"); INR when the currency is unknown. */
+export function formatStoreMoney(amount: number, currency?: string | null): string {
+    const code = (currency || "INR").toUpperCase();
+    try {
+        return new Intl.NumberFormat(CURRENCY_LOCALE[code] ?? "en-US", { style: "currency", currency: code, maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(amount);
+    } catch {
+        return formatInr(amount);
+    }
+}
+
 export function splitName(fullName: string): { firstName: string; lastName: string } {
     const parts = fullName.trim().split(/\s+/);
     if (parts.length === 1) return { firstName: parts[0], lastName: "" };

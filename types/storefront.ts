@@ -102,6 +102,8 @@ export interface ShopIdentity {
     isActive: boolean;
     isPublished?: boolean;
     settings?: {
+        // The store's currency (INR/USD/AED); null when the store hasn't set one.
+        currency?: string | null;
         tax?: TaxSettings;
         marketing?: {
             metaPixel?: { enabled?: boolean; pixelId?: string };
@@ -114,6 +116,8 @@ export interface ShopIdentity {
             active?: string[];
             razorpay?: { enabled?: boolean; keyId?: string };
             stripe?: { enabled?: boolean; publishableKey?: string };
+            // Cash on delivery; enabled null = never saved (legacy rule).
+            cod?: { enabled?: boolean | null; minOrderValue?: number | null };
         };
         logistics?: {
             active?: string[];

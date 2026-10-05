@@ -238,3 +238,58 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
         expect(readyRazorpay.open).not.toHaveBeenCalled();
     });
 });
+
+const asRazorpay = (a: object) => a as unknown as ReturnType<typeof useRazorpayAdapter>;
+const asStripe = (a: object) => a as unknown as ReturnType<typeof useStripeAdapter>;
+
+describe("CheckoutView - cash on delivery setting and no-payment message", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(notReadyRazorpay));
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(notReadyStripe));
+    });
+
+    const NO_PAYMENTS = "This store isn't accepting payments right now. Please contact the store.";
+
+    it("COD turned off and no gateway: shows the message, no COD, Place order disabled", async () => {
+        renderCheckout({ activeGateways: [], cod: { enabled: false, minOrderValue: null } });
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(NO_PAYMENTS);
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /place order/i })).toBeDisabled();
+    });
+
+    it("COD below its minimum and no gateway: says the minimum, in the store's currency", async () => {
+        renderCheckout({ activeGateways: [], cod: { enabled: true, minOrderValue: 500 }, currency: "INR" });
+
+        expect(await screen.findByRole("alert")).toHaveTextContent("Cash on delivery is available for orders of ₹500 or more.");
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+    });
+
+    it("COD turned on alongside a gateway: both are offered", async () => {
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(readyRazorpay));
+
+        renderCheckout({ activeGateways: ["razorpay"], cod: { enabled: true, minOrderValue: null } });
+
+        expect(await screen.findByText("Pay via UPI")).toBeInTheDocument();
+        expect(screen.getByText("Cash on delivery")).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("COD turned off with a gateway: gateway methods only, no message", async () => {
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(readyStripe));
+
+        renderCheckout({ activeGateways: ["stripe"], cod: { enabled: false } });
+
+        expect(await screen.findByText("Card (international)")).toBeInTheDocument();
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("never saved (older backend or no setting): COD only when no gateway is active, as before", async () => {
+        renderCheckout({ activeGateways: [], cod: { enabled: null } });
+        expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+});

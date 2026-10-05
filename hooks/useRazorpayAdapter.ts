@@ -77,7 +77,11 @@ export function useRazorpayAdapter({ storeId, storeName }: UseRazorpayAdapterOpt
             }
             setIsLoading(true);
             try {
-                const orderData = await createGatewayOrder(storeId, "razorpay", orderRef.amount);
+                const orderData = await createGatewayOrder(storeId, "razorpay", {
+                    amount: orderRef.amount,
+                    shippingAddress: orderRef.shippingAddress,
+                    ...(orderRef.billingAddress ? { billingAddress: orderRef.billingAddress } : {}),
+                });
                 if (!orderData || !orderData.keyId || !orderData.orderId) {
                     throw new Error("Failed to create payment order");
                 }

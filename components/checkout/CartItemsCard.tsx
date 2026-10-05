@@ -1,8 +1,9 @@
 "use client";
 
 import type { CartItem } from "@/redux/slices/userSlice";
-import { formatInr, variantLabel } from "./checkoutUtils";
+import { variantLabel } from "./checkoutUtils";
 import { Minus, Plus, ShoppingCart, Trash2, ChevronUp } from "lucide-react";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface CartItemsCardProps {
     items: CartItem[];
@@ -23,6 +24,7 @@ export default function CartItemsCard({
     onRemove,
     className = "",
 }: CartItemsCardProps) {
+    const { format } = useStoreCurrency();
     const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
     const showItems = !collapsible || isOpen;
 
@@ -63,10 +65,10 @@ export default function CartItemsCard({
                                     <div className="flex justify-between items-start gap-2">
                                         <h3 className="text-gray-800 font-semibold text-[14px] sm:text-[15px] leading-snug">{item.name}</h3>
                                         <div className="flex flex-col items-end shrink-0">
-                                            <span className="text-gray-900 font-bold text-[14px] sm:text-[15px]">{formatInr(item.price)}</span>
+                                            <span className="text-gray-900 font-bold text-[14px] sm:text-[15px]">{format(item.price)}</span>
                                             {mrp && (
                                                 <span className="text-gray-400 text-[12px] sm:text-[13px] line-through font-medium">
-                                                    {formatInr(mrp)}
+                                                    {format(mrp)}
                                                 </span>
                                             )}
                                         </div>

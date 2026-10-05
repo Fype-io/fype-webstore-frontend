@@ -13,6 +13,7 @@ import {
     addToWishlist,
     type CartItem,
 } from "@/redux/slices/userSlice";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface CartViewProps {
     storeId?: string;
@@ -25,6 +26,7 @@ interface CartViewProps {
 // checkout (Phase 3, /checkout), not here. "Proceed to Checkout" just hands
 // off; it doesn't do checkout's job.
 export default function CartView({ storeId, shopName, taxLabel }: CartViewProps) {
+    const { prefix } = useStoreCurrency();
     const router = useRouter();
     const dispatch = useAppDispatch();
     const { cart, isAuthenticated } = useAppSelector((state) => state.user);
@@ -131,9 +133,9 @@ export default function CartView({ storeId, shopName, taxLabel }: CartViewProps)
                                     </button>
                                     <div className="text-right">
                                         {item.compareAtPrice && item.compareAtPrice > item.price ? (
-                                            <span className="text-xs text-gray-400 line-through mr-2">₹{Number(item.compareAtPrice).toFixed(2)}</span>
+                                            <span className="text-xs text-gray-400 line-through mr-2">{prefix}{Number(item.compareAtPrice).toFixed(2)}</span>
                                         ) : null}
-                                        <span className="text-base text-black italic">₹{Number(item.price).toFixed(2)}</span>
+                                        <span className="text-base text-black italic">{prefix}{Number(item.price).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -151,12 +153,12 @@ export default function CartView({ storeId, shopName, taxLabel }: CartViewProps)
                     <div className="space-y-3 text-xs uppercase font-bold tracking-tight">
                         <div className="flex justify-between">
                             <span className="text-gray-500">Bag Total</span>
-                            <span className="text-black">₹{Number(cart.subtotal).toFixed(2)}</span>
+                            <span className="text-black">{prefix}{Number(cart.subtotal).toFixed(2)}</span>
                         </div>
                         {cart.tax > 0 && (
                             <div className="flex justify-between">
                                 <span className="text-gray-500">{cart.taxLabel || taxLabel || "Estimated Tax"}</span>
-                                <span className="text-black">₹{Number(cart.tax).toFixed(2)}</span>
+                                <span className="text-black">{prefix}{Number(cart.tax).toFixed(2)}</span>
                             </div>
                         )}
                         <p className="text-[10px] text-gray-400 normal-case font-medium tracking-normal pt-1">
@@ -164,7 +166,7 @@ export default function CartView({ storeId, shopName, taxLabel }: CartViewProps)
                         </p>
                         <div className="flex justify-between text-sm pt-4 border-t border-gray-100 font-black tracking-widest">
                             <span className="text-black">Total</span>
-                            <span className="text-black">₹{Number(grandTotal).toFixed(2)}</span>
+                            <span className="text-black">{prefix}{Number(grandTotal).toFixed(2)}</span>
                         </div>
                     </div>
 

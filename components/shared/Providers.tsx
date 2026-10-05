@@ -8,6 +8,7 @@ import { setCurrentStoreId } from "@/lib/client-store-context";
 import { isSignedOutSession, getAuthToken } from "@/lib/client-api";
 import { fetchUserProfile, fetchCart, fetchGuestCart, fetchWishlist, markAuthChecked } from "@/redux/slices/userSlice";
 import { isEditorPreview } from "@/lib/editor-preview";
+import { StoreCurrencyProvider } from "./StoreCurrency";
 
 function AuthBootstrap({ storeId }: { storeId: string }) {
     const dispatch = useAppDispatch();
@@ -63,10 +64,12 @@ function CustomerSessionHydrate({ storeId }: { storeId: string }) {
 
 interface ProvidersProps {
     storeId?: string;
+    /** The store's currency (public settings `currency`); prices show in it. */
+    currency?: string | null;
     children: React.ReactNode;
 }
 
-export default function Providers({ storeId, children }: ProvidersProps) {
+export default function Providers({ storeId, currency, children }: ProvidersProps) {
     const [store] = useState(() => makeStore());
 
     useEffect(() => {
@@ -77,7 +80,7 @@ export default function Providers({ storeId, children }: ProvidersProps) {
         <Provider store={store}>
             {storeId && <AuthBootstrap storeId={storeId} />}
             {storeId && <CustomerSessionHydrate storeId={storeId} />}
-            {children}
+            <StoreCurrencyProvider currency={currency}>{children}</StoreCurrencyProvider>
         </Provider>
     );
 }

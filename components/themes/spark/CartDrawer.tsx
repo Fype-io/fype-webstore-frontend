@@ -13,6 +13,7 @@ import {
     type CartItem,
 } from "@/redux/slices/userSlice";
 import { cartTotalCount } from "./SparkCartContext";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface CartDrawerProps {
     storeId: string;
@@ -21,6 +22,7 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ storeId, isOpen, onClose }: CartDrawerProps) {
+    const { prefix, locale } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { cart, isAuthenticated } = useAppSelector((state) => state.user);
 
@@ -142,7 +144,7 @@ export default function CartDrawer({ storeId, isOpen, onClose }: CartDrawerProps
                                                             .join(" | ")}
                                                     </p>
                                                 )}
-                                                {!item.options && <p className="text-gray-500 text-sm mb-4">₹{Number(item.price).toLocaleString("en-IN")}</p>}
+                                                {!item.options && <p className="text-gray-500 text-sm mb-4">{prefix}{Number(item.price).toLocaleString(locale)}</p>}
                                             </div>
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                                 <div className="flex items-center border border-gray-200 rounded">
@@ -163,7 +165,7 @@ export default function CartDrawer({ storeId, isOpen, onClose }: CartDrawerProps
                                                     </button>
                                                 </div>
                                                 <span className="font-medium text-gray-900">
-                                                    ₹{(Number(item.price) * item.quantity).toLocaleString("en-IN")}
+                                                    {prefix}{(Number(item.price) * item.quantity).toLocaleString(locale)}
                                                 </span>
                                             </div>
                                         </div>
@@ -176,7 +178,7 @@ export default function CartDrawer({ storeId, isOpen, onClose }: CartDrawerProps
                             <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 space-y-4 shrink-0">
                                 <div className="flex justify-between text-lg font-bold">
                                     <span>Subtotal</span>
-                                    <span>₹{Number(subtotal).toLocaleString("en-IN")}</span>
+                                    <span>{prefix}{Number(subtotal).toLocaleString(locale)}</span>
                                 </div>
                                 <p className="text-sm text-gray-500 text-center">Shipping & taxes calculated at checkout</p>
                                 <Link

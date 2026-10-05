@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchOrders } from "@/redux/slices/userSlice";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { currencyLocale, currencyPrefix } from "@/lib/currency";
 
 interface OrderListProps {
     storeId: string;
@@ -26,6 +28,7 @@ const statusBadgeClass = (status: string) => {
 };
 
 export default function OrderList({ storeId }: OrderListProps) {
+    const { currency } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { orders, ordersLoading, ordersPagination } = useAppSelector((state) => state.user);
     const [page, setPage] = useState(1);
@@ -81,7 +84,7 @@ export default function OrderList({ storeId }: OrderListProps) {
                                 </p>
                             </div>
                             <div className="text-left sm:text-right">
-                                <p className="text-xl font-semibold text-black">₹{order.total.toLocaleString()}</p>
+                                <p className="text-xl font-semibold text-black">{currencyPrefix(order.currency || currency)}{order.total.toLocaleString(currencyLocale(order.currency || currency))}</p>
                             </div>
                         </div>
 
@@ -126,7 +129,7 @@ export default function OrderList({ storeId }: OrderListProps) {
                                                 )}
                                             </div>
                                         </div>
-                                        <span className="text-sm font-semibold text-gray-900">₹{(item.subtotal ?? item.price * item.quantity).toLocaleString()}</span>
+                                        <span className="text-sm font-semibold text-gray-900">{currencyPrefix(order.currency || currency)}{(item.subtotal ?? item.price * item.quantity).toLocaleString(currencyLocale(order.currency || currency))}</span>
                                     </div>
                                 ))}
                             </div>

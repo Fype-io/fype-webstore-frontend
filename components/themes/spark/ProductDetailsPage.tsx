@@ -17,6 +17,7 @@ import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
 import { useSparkCart } from "./SparkCartContext";
 import type { SparkProductHighlight } from "./sparkConfig";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 const NEW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const HIGHLIGHT_ICONS = [Truck, RefreshCw, Shield];
@@ -52,6 +53,7 @@ function ProductHighlights({ highlights, compact }: { highlights: SparkProductHi
 // selection, cart dispatch), so the live-editing postMessage listener is
 // embedded directly instead of adding a redundant wrapper layer.
 export default function ProductDetailsPage({ shop, navPages, allPages, product, variants, variantOptions, relatedProducts, themeConfig }: ProductDetailsPageProps) {
+    const { prefix } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated, wishlist } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -345,9 +347,9 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                     <div className="mb-8">
                         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-4 break-words">{product.name}</h1>
                         <p className="text-2xl text-gray-500 font-medium break-words">
-                            ₹{displayPrice}
+                            {prefix}{displayPrice}
                             {displayData.compareAtPrice > displayData.price && (
-                                <span className="text-lg text-gray-400 line-through ml-2">₹{compareDisplayPrice}</span>
+                                <span className="text-lg text-gray-400 line-through ml-2">{prefix}{compareDisplayPrice}</span>
                             )}
                         </p>
 
@@ -494,7 +496,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                                     />
                                 </div>
                                 <p className="text-sm font-medium text-gray-900 truncate">{related.name}</p>
-                                <p className="text-sm text-gray-500 mt-1">₹{related.price}</p>
+                                <p className="text-sm text-gray-500 mt-1">{prefix}{related.price}</p>
                             </Link>
                         ))}
                     </div>

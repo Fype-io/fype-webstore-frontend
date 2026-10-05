@@ -1,7 +1,7 @@
 "use client";
 
-import { formatInr } from "./checkoutUtils";
 import { Banknote } from "lucide-react";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface PaymentSummaryCardProps {
     subtotal: number;
@@ -20,6 +20,7 @@ export default function PaymentSummaryCard({
     shippingCalculating,
     total,
 }: PaymentSummaryCardProps) {
+    const { format } = useStoreCurrency();
     return (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
@@ -29,11 +30,11 @@ export default function PaymentSummaryCard({
             <div className="flex flex-col gap-3 mt-1 text-[13px] sm:text-[14px]">
                 <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-semibold">Subtotal</span>
-                    <span className="text-gray-800 font-bold">{formatInr(subtotal)}</span>
+                    <span className="text-gray-800 font-bold">{format(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-semibold">{taxLabel || "Tax"}</span>
-                    <span className="text-gray-800 font-bold">{formatInr(tax)}</span>
+                    <span className="text-gray-800 font-bold">{format(tax)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-semibold">Shipping</span>
@@ -45,14 +46,14 @@ export default function PaymentSummaryCard({
                         ) : shipping === 0 ? (
                             "FREE"
                         ) : (
-                            formatInr(shipping)
+                            format(shipping)
                         )}
                     </span>
                 </div>
                 <div className="h-[1px] bg-gray-100 my-1" />
                 <div className="flex justify-between items-center pt-0.5">
                     <span className="text-gray-800 font-bold text-[15px] sm:text-[16px]">Total</span>
-                    <span className="text-gray-900 font-bold text-[17px] sm:text-[18px]">{formatInr(total)}</span>
+                    <span className="text-gray-900 font-bold text-[17px] sm:text-[18px]">{format(total)}</span>
                 </div>
             </div>
         </section>

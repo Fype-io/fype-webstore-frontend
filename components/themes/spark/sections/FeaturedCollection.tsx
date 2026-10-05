@@ -9,6 +9,7 @@ import { calculateProductTax } from "@/utils/taxCalculator";
 import type { SparkFeaturedCollectionSettings } from "../sparkConfig";
 import type { CollectionSummary, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface FeaturedCollectionProps {
     settings: SparkFeaturedCollectionSettings;
@@ -70,6 +71,7 @@ interface FeaturedProductCardProps {
 // (no variant picker in a grid card) and just link through to the PDP like
 // the rest of the card already does.
 function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: FeaturedProductCardProps) {
+    const { prefix } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -158,8 +160,8 @@ function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: F
                 <div>
                     <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors truncate">{product.name}</h3>
                     <div className="flex items-center gap-2 mt-1.5">
-                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">₹{compareDisplayPrice}</p>}
-                        <p className="text-gray-500">₹{displayPrice}</p>
+                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">{prefix}{compareDisplayPrice}</p>}
+                        <p className="text-gray-500">{prefix}{displayPrice}</p>
                     </div>
                 </div>
             </Link>

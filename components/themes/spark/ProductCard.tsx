@@ -8,6 +8,7 @@ import { addToCart, addToGuestCart, fetchCart, fetchGuestCart } from "@/redux/sl
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "./SparkCartContext";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 const DEFAULT_PRODUCT_IMAGE =
     "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
@@ -54,6 +55,7 @@ export default function ProductCard({
     disableQuickAdd = false,
     showWishlistButton = false,
 }: SparkProductCardProps) {
+    const { prefix } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -161,9 +163,9 @@ export default function ProductCard({
                     )}
                     {showPrice && (
                     <div className="flex items-center gap-2 mt-1.5">
-                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">₹{compareDisplayPrice}</p>}
+                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">{prefix}{compareDisplayPrice}</p>}
                         <p className="text-gray-500">
-                            {product.hasVariants && price !== maxPrice ? `₹${displayPrice} – ₹${maxDisplayPrice}` : `₹${displayPrice}`}
+                            {product.hasVariants && price !== maxPrice ? `${prefix}${displayPrice} – ${prefix}${maxDisplayPrice}` : `${prefix}${displayPrice}`}
                         </p>
                     </div>
                     )}

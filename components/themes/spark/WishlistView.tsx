@@ -8,12 +8,14 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart, addToGuestCart, fetchCart, fetchGuestCart, fetchWishlist, removeFromWishlist } from "@/redux/slices/userSlice";
 import { useSparkCart } from "./SparkCartContext";
 import type { StorefrontProduct } from "@/types/storefront";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface WishlistViewProps {
     storeId?: string;
 }
 
 export default function WishlistView({ storeId }: WishlistViewProps) {
+    const { prefix, locale } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { openCart } = useSparkCart();
     const { wishlist, wishlistLoading, isAuthenticated } = useAppSelector((state) => state.user);
@@ -120,7 +122,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                                 <div className="p-4 flex-1 flex flex-col justify-between">
                                     <Link href={`/products/${item.productId}`} className="mb-3">
                                         <h3 className="font-semibold text-sm text-gray-900 line-clamp-1 group-hover:text-gray-600 transition-colors">{item.name}</h3>
-                                        <p className="text-sm text-gray-500 font-medium mt-1">₹{Number(item.price).toLocaleString("en-IN")}</p>
+                                        <p className="text-sm text-gray-500 font-medium mt-1">{prefix}{Number(item.price).toLocaleString(locale)}</p>
                                     </Link>
                                     {item.hasVariants ? (
                                         <Link

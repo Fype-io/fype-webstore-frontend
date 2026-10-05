@@ -106,6 +106,8 @@ export interface Order {
     shipping: number;
     discount: number;
     total: number;
+    /** Currency the order was placed in (orders from before PR1 have none). */
+    currency?: string | null;
     paymentStatus: "pending" | "completed" | "paid" | "unpaid" | "cod" | "failed" | "refunded" | "partially_refunded";
     totalRefunded?: number;
     cancellationReason?: string;

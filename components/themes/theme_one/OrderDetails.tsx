@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Order } from "@/redux/slices/userSlice";
 import OrderTracking from "./OrderTracking";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { currencyLocale, currencyPrefix } from "@/lib/currency";
 
 interface OrderDetailProps {
     order: Order;
@@ -11,6 +13,10 @@ interface OrderDetailProps {
 }
 
 export default function OrderDetail({ order, storeId }: OrderDetailProps) {
+    const { currency } = useStoreCurrency();
+    // The order's own currency (saved since checkout became server-priced), else the store's.
+    const prefix = currencyPrefix(order.currency || currency);
+    const locale = currencyLocale(order.currency || currency);
     const [trackingInfo, setTrackingInfo] = useState<{ number: string; carrier?: string; orderStatus?: string } | null>(null);
 
     const allShipments =
@@ -68,7 +74,7 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                                         <p className="text-xs text-gray-500 font-medium mt-2">Quantity: {item.quantity}</p>
                                                     </div>
                                                 </div>
-                                                <span className="text-sm font-semibold text-gray-900">₹{item.price.toLocaleString()}</span>
+                                                <span className="text-sm font-semibold text-gray-900">{prefix}{item.price.toLocaleString(locale)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -78,27 +84,27 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                             <div className="pt-10 border-t border-gray-100 space-y-5">
                                 <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                     <span>Subtotal</span>
-                                    <span>₹{(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0)).toLocaleString()}</span>
+                                    <span>{prefix}{(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0)).toLocaleString(locale)}</span>
                                 </div>
                                 {order.tax > 0 && (
                                     <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                         <span>Tax</span>
-                                        <span>₹{order.tax.toLocaleString()}</span>
+                                        <span>{prefix}{order.tax.toLocaleString(locale)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                     <span>Shipping</span>
-                                    {order.shipping > 0 ? <span>₹{order.shipping.toLocaleString()}</span> : <span className="text-green-600 font-semibold">Free</span>}
+                                    {order.shipping > 0 ? <span>{prefix}{order.shipping.toLocaleString(locale)}</span> : <span className="text-green-600 font-semibold">Free</span>}
                                 </div>
                                 {order.discount > 0 && (
                                     <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                         <span>Discount</span>
-                                        <span className="text-red-500">-₹{order.discount.toLocaleString()}</span>
+                                        <span className="text-red-500">-{prefix}{order.discount.toLocaleString(locale)}</span>
                                     </div>
                                 )}
                                 <div className="pt-8 mt-2 border-t border-gray-100 flex justify-between items-center text-gray-900">
                                     <span className="text-base font-medium tracking-tight">Total Amount</span>
-                                    <span className="text-3xl font-bold tracking-tight">₹{order.total.toLocaleString()}</span>
+                                    <span className="text-3xl font-bold tracking-tight">{prefix}{order.total.toLocaleString(locale)}</span>
                                 </div>
                             </div>
                         </div>

@@ -1,5 +1,6 @@
 import type { Address, CartItem } from "@/redux/slices/userSlice";
 import { countryName } from "./ui/countries";
+import { formatPrice } from "@/lib/currency";
 
 export type CheckoutViewState = "checkout" | "add-address" | "select-address" | "payment-methods";
 // Widened from a closed 'upi'|'card'|'netbanking'|'cod' union: method ids are
@@ -33,10 +34,6 @@ export function variantLabel(item: CartItem): string {
     return Object.values(item.options).filter(Boolean).join(" / ");
 }
 
-export function formatInr(amount: number): string {
-    return `₹${Math.round(amount).toLocaleString("en-IN")}`;
-}
-
 // Cash on delivery as the store set it (public settings payment.cod). enabled
 // null/undefined: never saved - the legacy rule applies (COD only when no
 // online gateway is active). A minimum order value hides COD below it.
@@ -56,16 +53,9 @@ export function codAvailability(cod: CodSetting | undefined, hasPaymentGateway: 
 
 export const PAYMENTS_UNAVAILABLE_MESSAGE = "This store isn't accepting payments right now. Please contact the store.";
 
-const CURRENCY_LOCALE: Record<string, string> = { INR: "en-IN", USD: "en-US", AED: "en-AE" };
-
 /** An amount in the store's currency ("₹500", "$25", "AED 100"); INR when the currency is unknown. */
 export function formatStoreMoney(amount: number, currency?: string | null): string {
-    const code = (currency || "INR").toUpperCase();
-    try {
-        return new Intl.NumberFormat(CURRENCY_LOCALE[code] ?? "en-US", { style: "currency", currency: code, maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(amount);
-    } catch {
-        return formatInr(amount);
-    }
+    return formatPrice(amount, currency);
 }
 
 export function splitName(fullName: string): { firstName: string; lastName: string } {

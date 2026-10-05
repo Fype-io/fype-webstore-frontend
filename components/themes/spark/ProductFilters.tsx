@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ProductSortBy } from "@/types/storefront";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 const SORT_OPTIONS: Array<{ value: ProductSortBy; label: string }> = [
     { value: "newest", label: "Newest" },
@@ -22,6 +23,7 @@ interface ProductFiltersProps {
 }
 
 export default function ProductFilters({ defaultSort }: ProductFiltersProps) {
+    const { symbol } = useStoreCurrency();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -118,7 +120,7 @@ export default function ProductFilters({ defaultSort }: ProductFiltersProps) {
                                 <h4 className="font-bold text-base mb-4">Price Range</h4>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-sm text-gray-500 mb-1.5 block">Min Price (₹)</label>
+                                        <label className="text-sm text-gray-500 mb-1.5 block">Min Price ({symbol})</label>
                                         <input
                                             type="number"
                                             placeholder="0"
@@ -128,7 +130,7 @@ export default function ProductFilters({ defaultSort }: ProductFiltersProps) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-500 mb-1.5 block">Max Price (₹)</label>
+                                        <label className="text-sm text-gray-500 mb-1.5 block">Max Price ({symbol})</label>
                                         <input
                                             type="number"
                                             placeholder="Any"

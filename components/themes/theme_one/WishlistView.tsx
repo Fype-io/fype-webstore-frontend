@@ -7,6 +7,7 @@ import { getApi } from "@/lib/client-api";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchWishlist, removeFromWishlist, addToCart } from "@/redux/slices/userSlice";
 import type { StorefrontProduct } from "@/types/storefront";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 const DEFAULT_PRODUCT_IMAGE =
     "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
@@ -16,6 +17,7 @@ interface WishlistViewProps {
 }
 
 export default function WishlistView({ storeId }: WishlistViewProps) {
+    const { prefix, locale } = useStoreCurrency();
     const router = useRouter();
     const dispatch = useAppDispatch();
     const { wishlist, wishlistLoading, isAuthenticated } = useAppSelector((state) => state.user);
@@ -122,9 +124,9 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                         <div className="mt-auto flex justify-between items-end">
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-lg font-bold text-gray-900">₹{Number(item.price).toLocaleString()}</span>
+                                    <span className="text-lg font-bold text-gray-900">{prefix}{Number(item.price).toLocaleString(locale)}</span>
                                     {item.compareAtPrice > item.price && (
-                                        <span className="text-sm text-gray-400 line-through">₹{Number(item.compareAtPrice).toLocaleString()}</span>
+                                        <span className="text-sm text-gray-400 line-through">{prefix}{Number(item.compareAtPrice).toLocaleString(locale)}</span>
                                     )}
                                 </div>
                                 <button

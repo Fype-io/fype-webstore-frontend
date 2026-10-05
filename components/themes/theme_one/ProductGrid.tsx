@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { TaxSettings } from "@/types/storefront";
+import { currencyPrefix } from "@/lib/currency";
 
 export interface GridProduct {
     id: string;
@@ -21,9 +22,12 @@ interface ProductGridProps {
     products: GridProduct[];
     title?: string;
     globalTax?: TaxSettings;
+    /** The store's currency (server component: can't read the currency context). */
+    currency?: string | null;
 }
 
-export default function ProductGrid({ products, title = "Fresh Drops", globalTax }: ProductGridProps) {
+export default function ProductGrid({ products, title = "Fresh Drops", globalTax, currency }: ProductGridProps) {
+    const prefix = currencyPrefix(currency);
     return (
         <section className="py-16 sm:py-24">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,8 +84,8 @@ export default function ProductGrid({ products, title = "Fresh Drops", globalTax
                                         <p className="text-black/80 font-medium flex items-baseline gap-1">
                                             <span>
                                                 {product.hasVariants && price !== maxPrice
-                                                    ? `₹${displayPrice} - ₹${maxDisplayPrice}`
-                                                    : `₹${displayPrice}`}
+                                                    ? `${prefix}${displayPrice} - ${prefix}${maxDisplayPrice}`
+                                                    : `${prefix}${displayPrice}`}
                                             </span>
                                         </p>
                                         {hasDiscount && (

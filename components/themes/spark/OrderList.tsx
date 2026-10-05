@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchOrders } from "@/redux/slices/userSlice";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { currencyLocale, currencyPrefix } from "@/lib/currency";
 
 interface OrderListProps {
     storeId: string;
@@ -27,6 +29,7 @@ const statusBadgeClass = (status: string) => {
 };
 
 export default function OrderList({ storeId }: OrderListProps) {
+    const { currency } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { orders, ordersLoading, ordersPagination } = useAppSelector((state) => state.user);
     const [page, setPage] = useState(1);
@@ -76,7 +79,7 @@ export default function OrderList({ storeId }: OrderListProps) {
                                     </div>
                                     <div>
                                         <div className="text-gray-400 text-[10px] md:text-xs font-bold tracking-wider uppercase mb-1">Total</div>
-                                        <div className="font-medium text-xs md:text-sm">₹{Number(order.total).toLocaleString("en-IN")}</div>
+                                        <div className="font-medium text-xs md:text-sm">{currencyPrefix(order.currency || currency)}{Number(order.total).toLocaleString(currencyLocale(order.currency || currency))}</div>
                                     </div>
                                     <div>
                                         <div className="text-gray-400 text-[10px] md:text-xs font-bold tracking-wider uppercase mb-1">Order #</div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
 import { createGatewayOrder, verifyGatewayPayment } from "@/lib/payment-api";
 import type { CheckoutGatewayAdapter, GatewayOpenResult, GatewayOrderRef, PaymentMethodOption } from "@/types/checkoutGateway";
+import { CURRENCY_LOCALE } from "@/lib/currency";
 
 interface UseStripeAdapterOptions {
     storeId: string;
@@ -24,9 +25,8 @@ const STRIPE_METHODS: PaymentMethodOption[] = [
  * the plain-JS equivalent of Razorpay's own modal, not a redirect flow) and
  * resolves once the customer completes or cancels payment.
  */
-// Store currencies (one per store, set by the merchant) and how each displays.
-// Minor-unit digits come from Intl for the currency rather than an assumed 2.
-const CURRENCY_LOCALE: Record<string, string> = { INR: "en-IN", USD: "en-US", AED: "en-AE" };
+// Minor-unit digits come from Intl for the currency rather than an assumed 2;
+// the locale per store currency is shared (lib/currency.ts).
 
 /** "Pay ₹511.98" / "Pay $511.98" / "Pay AED 511.98": the amount the backend priced, in the store's currency. */
 export function payButtonLabel(amountMinor: number, currency: string): string {

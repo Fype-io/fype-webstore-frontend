@@ -124,6 +124,7 @@ export default async function ThemedHome({
                                     products={formatProductsForGrid(newInProducts)}
                                     title={section.title}
                                     globalTax={globalTax}
+                                    currency={shop.settings?.currency}
                                 />
                             ) : null;
 
@@ -139,6 +140,7 @@ export default async function ThemedHome({
                                     products={formatProductsForGrid(bestSellerProducts)}
                                     title={section.title}
                                     globalTax={globalTax}
+                                    currency={shop.settings?.currency}
                                 />
                             ) : null;
 

@@ -82,7 +82,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
                     fbq('init','${metaPixelId}');`}
                 </Script>
             )}
-            <Providers storeId={shop?.shopId}>
+            <Providers storeId={shop?.shopId} currency={shop?.settings?.currency}>
                 <EditorPreviewNavigationLock />
                 <ThemeLayout shopName={shop?.shopName} storeId={shop?.shopId}>
                     {children}

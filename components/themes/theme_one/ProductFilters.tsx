@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { Category, ProductSortBy } from "@/types/storefront";
+import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
 interface ProductFiltersProps {
     categories: Category[];
 }
 
-const CURRENCY_SYMBOL = "₹";
 
 function FilterButton({
     label,
@@ -38,6 +38,7 @@ function FilterButton({
 }
 
 export default function ProductFilters({ categories }: ProductFiltersProps) {
+    const { symbol } = useStoreCurrency();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -189,7 +190,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
 
                 <div className="relative" ref={priceDropdownRef}>
                     <FilterButton
-                        label={minPrice || maxPrice ? `Price (${CURRENCY_SYMBOL}${minPrice || 0} - ${CURRENCY_SYMBOL}${maxPrice || "∞"})` : "Price"}
+                        label={minPrice || maxPrice ? `Price (${symbol}${minPrice || 0} - ${symbol}${maxPrice || "∞"})` : "Price"}
                         onClick={() => setIsPriceDropdownOpen(!isPriceDropdownOpen)}
                         isOpen={isPriceDropdownOpen}
                         hasActiveFilters={!!minPrice || !!maxPrice}
@@ -201,7 +202,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                                 <h3 className="font-semibold text-sm mb-3">Price Range</h3>
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Min Price ({CURRENCY_SYMBOL})</label>
+                                        <label className="block text-xs text-gray-600 mb-1">Min Price ({symbol})</label>
                                         <input
                                             type="number"
                                             value={tempMinPrice}
@@ -212,7 +213,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Max Price ({CURRENCY_SYMBOL})</label>
+                                        <label className="block text-xs text-gray-600 mb-1">Max Price ({symbol})</label>
                                         <input
                                             type="number"
                                             value={tempMaxPrice}
@@ -273,7 +274,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
 
                         {(minPrice || maxPrice) && (
                             <span className="px-3 py-1 bg-black text-white rounded-full text-sm flex items-center gap-2">
-                                Price: {CURRENCY_SYMBOL}{minPrice || 0} - {CURRENCY_SYMBOL}{maxPrice || "∞"}
+                                Price: {symbol}{minPrice || 0} - {symbol}{maxPrice || "∞"}
                                 <button onClick={handlePriceRangeClear} className="hover:text-gray-200 font-bold">
                                     ×
                                 </button>

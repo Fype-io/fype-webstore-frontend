@@ -17,7 +17,7 @@ export default async function CheckoutLayout({ children }: { children: React.Rea
     await enforceStorefrontPassword(shop);
 
     return (
-        <Providers storeId={shop?.shopId}>
+        <Providers storeId={shop?.shopId} currency={shop?.settings?.currency}>
             <div className="checkout-shell min-h-screen flex flex-col bg-gray-100">{children}</div>
         </Providers>
     );

@@ -11,6 +11,7 @@ import {
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import { currencyPrefix } from "@/lib/currency";
 
 async function getCartPageData() {
     const headersList = await headers();
@@ -42,6 +43,7 @@ export default async function CartPage() {
     if (!data || !data.theme) return <ShopNotFound />;
 
     const { shop, theme, navPages, footerPages, bestSellerProducts } = data;
+    const prefix = currencyPrefix(shop.settings?.currency);
 
     const themeSlug = resolveThemeSlug(theme.templateId);
     const themeModule = await loadTheme(themeSlug);
@@ -102,9 +104,9 @@ export default async function CartPage() {
                                     </div>
                                     <h3 className="text-[10px] font-bold uppercase tracking-tight truncate text-black">{product.name}</h3>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] font-black italic text-black">₹{product.price}</span>
+                                        <span className="text-[10px] font-black italic text-black">{prefix}{product.price}</span>
                                         {product.compareAtPrice && product.compareAtPrice > product.price ? (
-                                            <span className="text-[8px] text-gray-400 line-through">₹{product.compareAtPrice}</span>
+                                            <span className="text-[8px] text-gray-400 line-through">{prefix}{product.compareAtPrice}</span>
                                         ) : null}
                                     </div>
                                 </Link>

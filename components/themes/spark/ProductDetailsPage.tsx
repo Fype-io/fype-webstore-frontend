@@ -198,6 +198,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                 {!footer.hidden && (
                     <div className="spark-layout-section" id="spark-section-footer" onClick={isEditorPreview ? selectFooter : undefined}>
                         <Footer
+                            storeName={shop.shopName}
                             settings={footer.settings}
                             blocks={footer.blocks.filter((b) => !b.hidden)}
                             navItems={navigation}
@@ -507,6 +508,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
             {!footer.hidden && (
                 <div className="spark-layout-section" id="spark-section-footer" onClick={isEditorPreview ? selectFooter : undefined}>
                     <Footer
+                        storeName={shop.shopName}
                         settings={footer.settings}
                         blocks={footer.blocks.filter((b) => !b.hidden)}
                         navItems={navigation}

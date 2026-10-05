@@ -21,6 +21,7 @@ export default function StorefrontChromeFooter({ shopName, navbar, footerPages, 
 
     return (
         <Footer
+            storeName={shopName}
             settings={footer.settings}
             blocks={footer.blocks.filter((b) => !b.hidden)}
             navItems={navItems}

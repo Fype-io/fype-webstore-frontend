@@ -445,6 +445,7 @@ export default function SparkHome({
                 <div id="spark-section-footer" {...sectionProps("footer")}>
                     <SectionOutline label="Footer" active={activeSection === "footer"} isEditorPreview={isEditorPreview} />
                     <Footer
+                        storeName={shop.shopName}
                         settings={footer.settings}
                         blocks={footer.blocks.filter((b) => !b.hidden)}
                         navItems={navItems}

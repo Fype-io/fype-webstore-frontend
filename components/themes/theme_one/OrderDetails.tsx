@@ -6,6 +6,7 @@ import type { Order } from "@/redux/slices/userSlice";
 import OrderTracking from "./OrderTracking";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { currencyLocale, currencyPrefix } from "@/lib/currency";
+import { ORDER_NOW_NOTE } from "@/components/checkout/checkoutUtils";
 
 interface OrderDetailProps {
     order: Order;
@@ -32,6 +33,13 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                 </Link>
                 <h2 className="text-3xl font-bold tracking-tight text-gray-900">Order {order.orderNumber}</h2>
             </div>
+
+            {/* Placed with "Order now" (no gateway, no COD): not paid, and not cash on delivery. */}
+            {order.paymentMethod === "manual" && order.paymentStatus === "unpaid" && (
+                <div role="status" className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-gray-700">
+                    {ORDER_NOW_NOTE}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">

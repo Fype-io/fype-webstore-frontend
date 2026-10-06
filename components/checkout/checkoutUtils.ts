@@ -1,6 +1,7 @@
 import type { Address, CartItem } from "@/redux/slices/userSlice";
 import { countryName } from "./ui/countries";
 import { formatPrice } from "@/lib/currency";
+import { providerSupportsCod, type ShipmentProvider } from "@/lib/shipment-provider";
 
 export type CheckoutViewState = "checkout" | "add-address" | "select-address" | "payment-methods";
 // Widened from a closed 'upi'|'card'|'netbanking'|'cod' union: method ids are
@@ -34,15 +35,24 @@ export function variantLabel(item: CartItem): string {
     return Object.values(item.options).filter(Boolean).join(" / ");
 }
 
-// Cash on delivery as the store set it (public settings payment.cod). enabled
-// null/undefined: never saved - the legacy rule applies (COD only when no
-// online gateway is active). A minimum order value hides COD below it.
+// Cash on delivery as the store set it (public settings payment.cod), and only
+// with a logistics app that collects the cash (providerSupportsCod) - never with
+// manual shipping, whatever the setting says. enabled null/undefined: never
+// saved - the legacy rule applies (COD only when no online gateway is active).
+// A minimum order value hides COD below it. crmApp's codSetting.service.ts
+// codUnavailableReason applies the same rule to the order.
 export interface CodSetting {
     enabled?: boolean | null;
     minOrderValue?: number | null;
 }
 
-export function codAvailability(cod: CodSetting | undefined, hasPaymentGateway: boolean, total: number): { offered: boolean; minimum: number | null } {
+export function codAvailability(
+    cod: CodSetting | undefined,
+    hasPaymentGateway: boolean,
+    total: number,
+    shipmentProvider: ShipmentProvider
+): { offered: boolean; minimum: number | null } {
+    if (!providerSupportsCod(shipmentProvider)) return { offered: false, minimum: null };
     const enabled = cod?.enabled;
     if (enabled === false) return { offered: false, minimum: null };
     if (enabled !== true) return { offered: !hasPaymentGateway, minimum: null };
@@ -51,7 +61,9 @@ export function codAvailability(cod: CodSetting | undefined, hasPaymentGateway: 
     return { offered: true, minimum: null };
 }
 
-export const PAYMENTS_UNAVAILABLE_MESSAGE = "This store isn't accepting payments right now. Please contact the store.";
+// "Order now": no online gateway and no COD. The order is placed unpaid
+// (paymentMethod "manual") and the store arranges payment with the customer.
+export const ORDER_NOW_NOTE = "The store will contact you to arrange payment.";
 
 /** An amount in the store's currency ("₹500", "$25", "AED 100"); INR when the currency is unknown. */
 export function formatStoreMoney(amount: number, currency?: string | null): string {

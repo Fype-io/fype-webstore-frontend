@@ -141,7 +141,7 @@ export default function Footer({
                                         "",
                                         <>
                                             {!footerLogoUrl && (
-                                                <div className="text-2xl font-black tracking-tighter mb-6">Spark.</div>
+                                                <div className="text-2xl font-black tracking-tighter mb-6">{shopName?.trim() || "Spark."}</div>
                                             )}
                                             <div className="max-w-sm mb-8 text-base leading-relaxed opacity-80" dangerouslySetInnerHTML={{ __html: block.settings.text }} />
                                             {socialLinks.length > 0 && (

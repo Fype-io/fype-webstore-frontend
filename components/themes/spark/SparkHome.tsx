@@ -19,6 +19,7 @@ import Footer from "./sections/Footer";
 import { mergeSparkConfig, type SparkBodySection, type SparkConfig, type SparkConfigOverride } from "./sparkConfig";
 import type { CollectionSummary, ProductDetail, ProductVariant, ShopIdentity, StorefrontProduct } from "@/types/storefront";
 import SparkHeaderShell from "./SparkHeaderShell";
+import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 
 // Message protocol between ecommerce_app's customization editor (parent
 // frame) and this page (embedded in an iframe). See MIGRATION_RUNBOOK.md
@@ -123,8 +124,8 @@ function SectionOutline({ label, active, isEditorPreview }: { label: string; act
 
 // Client Component so it can hold live-editing state and listen for
 // postMessage draft updates. Only listens at all when embedded in an iframe
-// AND the page was loaded with ?editorPreview=1 — normal customer traffic
-// (not in an iframe, no query param) never registers the listener, so a
+// AND the server verified a preview token (lib/editor-preview.ts) — normal customer traffic
+// (not in an iframe, no token) never registers the listener, so a
 // stray postMessage from an unrelated parent page can't do anything.
 export default function SparkHome({
     initialConfig,
@@ -148,7 +149,7 @@ export default function SparkHome({
 
     useEffect(() => {
         if (typeof window === "undefined" || window.parent === window) return;
-        if (new URLSearchParams(window.location.search).get("editorPreview") !== "1") return;
+        if (!isEditorPreviewFrame()) return;
         // Genuinely tied to a client-only check (parent frame + query
         // param) that can't be known at initial render — not derivable from
         // props/state the way most effect-body setState calls are.
@@ -156,7 +157,7 @@ export default function SparkHome({
         setIsEditorPreview(true);
 
         function handleMessage(event: MessageEvent) {
-            if (event.source !== window.parent) return;
+            if (!isEditorMessage(event)) return;
             if (!event.data) return;
             if (event.data.type === SPARK_DRAFT_UPDATE) {
                 setLiveConfig((current) => mergeSparkConfig(current, event.data.config as SparkConfigOverride));
@@ -174,7 +175,7 @@ export default function SparkHome({
         // property panel can prefill fields with actual values instead of
         // blanks — the parent has no other way to know the resolved
         // (defaults + saved themeConfig) starting point.
-        window.parent.postMessage({ type: SPARK_DRAFT_READY, config: initialConfig }, "*");
+        postToEditor({ type: SPARK_DRAFT_READY, config: initialConfig });
         return () => window.removeEventListener("message", handleMessage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -237,13 +238,13 @@ export default function SparkHome({
     const selectSection = (sectionId: string) => {
         setActiveSection(sectionId);
         setActiveBlock(null);
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: sectionId }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: sectionId });
     };
 
     const selectBlock = (block: SparkActiveBlock) => {
         setActiveSection(block.sectionId);
         setActiveBlock(block);
-        window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+        postToEditor({ type: SPARK_BLOCK_CLICKED, block });
     };
 
     useEffect(() => {
@@ -416,7 +417,7 @@ export default function SparkHome({
                 if (!isEditorPreview || e.target !== e.currentTarget) return;
                 setActiveSection(null);
                 setActiveBlock(null);
-                window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: null }, "*");
+                postToEditor({ type: SPARK_SECTION_CLICKED, section: null });
             }}
         >
             <SparkHeaderShell

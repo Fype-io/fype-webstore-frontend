@@ -1,19 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveTenant } from "@/lib/tenant";
-import { STOREFRONT_UNLOCK_COOKIE } from "@/lib/storefront-gate";
+import {
+    EDITOR_PREVIEW_COOKIE,
+    INTERNAL_REQUEST_HEADERS,
+    PREVIEW_TOKEN_HEADER,
+    PREVIEW_TOKEN_PARAM,
+    STOREFRONT_UNLOCK_COOKIE,
+    hasStorefrontAccess,
+    previewTokenTtl,
+} from "@/lib/storefront-gate";
+import { getEditorAdminOrigins, previewSecurityHeaders } from "@/lib/editor-admin-origins";
+import { getStorefrontTokenSecret } from "@/lib/storefront-token-secret";
 import { getRequestHost } from "@/lib/request-host";
 
-function skipPasswordGate(request: NextRequest): boolean {
-    const pathname = request.nextUrl.pathname;
-    if (
+// Paths that are never password-gated. The theme customizer's iframe gets past
+// the gate with a signed preview token (see lib/storefront-gate.ts), not with
+// ?editorPreview=1, which anyone could add.
+function skipPasswordGate(pathname: string): boolean {
+    return (
         pathname.startsWith("/storefront-password") ||
         pathname.startsWith("/api/") ||
         pathname.startsWith("/theme-preview")
-    ) {
-        return true;
-    }
-    // Theme customizer iframe always loads with this flag — never prompt there.
-    return request.nextUrl.searchParams.get("editorPreview") === "1";
+    );
 }
 
 // Routes that don't belong to a store: the store-independent theme preset
@@ -61,21 +69,39 @@ export async function middleware(request: NextRequest) {
     // unavailable (API down, nothing in KV) carries on as before: pages do their own lookup.
     const tenant = lookup.status === "found" ? lookup.tenant : null;
 
+    // Never trust a client-sent copy of the headers set below: the layouts
+    // read them as the middleware's word.
     const requestHeaders = new Headers(request.headers);
+    for (const name of INTERNAL_REQUEST_HEADERS) requestHeaders.delete(name);
     if (tenant) {
         requestHeaders.set("x-shop-id", tenant.shopId);
         requestHeaders.set("x-store-domain", tenant.storeDomain);
         requestHeaders.set("x-theme-id", tenant.themeId);
     }
-    if (request.nextUrl.searchParams.get("editorPreview") === "1") {
-        requestHeaders.set("x-editor-preview", "1");
-    }
 
-    if (tenant && tenant.isPublished === false && !skipPasswordGate(request)) {
-        const unlocked = request.cookies.get(STOREFRONT_UNLOCK_COOKIE)?.value === tenant.shopId;
-        if (!unlocked) {
+    // A preview token from the URL (the customizer iframe) or the cookie. It's
+    // forwarded unverified: the layouts verify it against their own shop
+    // lookup too (lib/editor-preview-server.ts), which also covers the
+    // tenant-unavailable case where this middleware can't.
+    const queryPreviewToken = request.nextUrl.searchParams.get(PREVIEW_TOKEN_PARAM);
+    const previewToken = queryPreviewToken || request.cookies.get(EDITOR_PREVIEW_COOKIE)?.value;
+    if (previewToken) requestHeaders.set(PREVIEW_TOKEN_HEADER, previewToken);
+
+    const secret = tenant && (previewToken || tenant.isPublished === false) ? await getStorefrontTokenSecret() : null;
+
+    if (tenant && tenant.isPublished === false && !skipPasswordGate(request.nextUrl.pathname)) {
+        const allowed = await hasStorefrontAccess(
+            { previewToken, unlockCookie: request.cookies.get(STOREFRONT_UNLOCK_COOKIE)?.value },
+            tenant.shopId,
+            secret
+        );
+        if (!allowed) {
+            // Same redirect whatever was wrong with a token: nothing says why.
             const url = request.nextUrl.clone();
-            const returnTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+            const returnParams = new URLSearchParams(request.nextUrl.search);
+            returnParams.delete(PREVIEW_TOKEN_PARAM);
+            const returnSearch = returnParams.toString();
+            const returnTo = `${request.nextUrl.pathname}${returnSearch ? `?${returnSearch}` : ""}`;
             url.pathname = "/storefront-password";
             url.search = "";
             if (returnTo && returnTo !== "/") {
@@ -85,7 +111,38 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+    // A URL that carries a token never sends it on in a Referer.
+    if (queryPreviewToken) response.headers.set("Referrer-Policy", "no-referrer");
+
+    // A verified preview may only be framed by the admin app.
+    const previewTtl = tenant && previewToken ? await previewTokenTtl(previewToken, tenant.shopId, secret) : null;
+    if (previewTtl !== null && previewTtl > 0) {
+        for (const [name, value] of Object.entries(previewSecurityHeaders(await getEditorAdminOrigins()))) {
+            response.headers.set(name, value);
+        }
+
+        // Keep a verified URL token as a cookie too, for requests that don't
+        // carry it (the client strips it from the address once the page has
+        // loaded - lib/editor-preview.ts). The customizer iframe is
+        // cross-site, so this is a third-party cookie: SameSite=None +
+        // Partitioned, and some browsers (Safari) drop it anyway - the admin
+        // puts a fresh token on every iframe URL it loads, so nothing depends
+        // on it.
+        if (queryPreviewToken) {
+            response.cookies.set(EDITOR_PREVIEW_COOKIE, queryPreviewToken, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "none",
+                partitioned: true,
+                path: "/",
+                maxAge: previewTtl,
+            });
+        }
+    }
+
+    return response;
 }
 
 export const config = {

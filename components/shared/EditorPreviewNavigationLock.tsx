@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { isEditorPreview, isEmbedPreview } from "@/lib/editor-preview";
+import { isEditorPreview, isEmbedPreview, stripPreviewTokenFromUrl } from "@/lib/editor-preview";
 
 function destinationChangesPage(url: string | URL | null | undefined): boolean {
     if (url == null || url === "") return false;
@@ -30,6 +30,9 @@ function isAnchorNavigation(event: MouseEvent): boolean {
 
 export default function EditorPreviewNavigationLock() {
     useEffect(() => {
+        // The server has checked the token by now; take it out of the address
+        // before anything (history, a copied URL) can pick it up.
+        stripPreviewTokenFromUrl();
         if (!isEditorPreview()) return;
 
         const html = document.documentElement;

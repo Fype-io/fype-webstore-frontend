@@ -12,6 +12,7 @@ import { SPARK_BLOCK_CLICKED, SPARK_DRAFT_READY, SPARK_DRAFT_UPDATE, SPARK_SECTI
 import type { PaginationMeta, ShopIdentity, StorefrontProduct } from "@/types/storefront";
 import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
+import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 
 const PRODUCTS_PER_ROW_CLASSES: Record<"2" | "3" | "4", string> = {
     "2": "grid-cols-2",
@@ -37,7 +38,7 @@ interface SparkShopProps {
 
 // Client Component so it can hold live-editing state and listen for
 // postMessage draft updates, same pattern/gating as SparkHome.tsx (only
-// activates inside an iframe with ?editorPreview=1 — real customer traffic
+// activates inside an iframe with a verified preview token — real customer traffic
 // never registers the listener). The parent already broadcasts
 // SPARK_SET_ACTIVE_SECTION on every activeItemId change regardless of which
 // page is loaded (SparkCustomizeTheme.tsx's sync effect isn't Home-scoped),
@@ -56,12 +57,12 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
 
     useEffect(() => {
         if (typeof window === "undefined" || window.parent === window) return;
-        if (new URLSearchParams(window.location.search).get("editorPreview") !== "1") return;
+        if (!isEditorPreviewFrame()) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsEditorPreview(true);
 
         function handleMessage(event: MessageEvent) {
-            if (event.source !== window.parent || !event.data) return;
+            if (!isEditorMessage(event) || !event.data) return;
             if (event.data.type === SPARK_DRAFT_UPDATE) {
                 setLiveConfig((current) => mergeSparkConfig(current, event.data.config as SparkConfigOverride));
             } else if (event.data.type === SPARK_SET_ACTIVE_SECTION) {
@@ -72,7 +73,7 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
         }
 
         window.addEventListener("message", handleMessage);
-        window.parent.postMessage({ type: SPARK_DRAFT_READY, config: initialConfig }, "*");
+        postToEditor({ type: SPARK_DRAFT_READY, config: initialConfig });
         return () => window.removeEventListener("message", handleMessage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -116,18 +117,18 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
     // exactly (ThemeCustomizePage.tsx's hover card + "Click to edit ...
     // layout settings" prompt), adapted for a real (not mock) rendered page.
     const selectShopLayout = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "page_settings:shop" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "page_settings:shop" });
     };
     const selectHeader = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "header" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "header" });
     };
     const selectFooter = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "footer" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "footer" });
     };
     const selectFooterBlock = (kind: "text" | "menu", id: string) => {
         const block = { sectionId: "footer", kind, id };
         setActiveBlock(block);
-        window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+        postToEditor({ type: SPARK_BLOCK_CLICKED, block });
     };
 
     return (
@@ -141,7 +142,7 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
                 onAnnouncementClick={(id) => {
                     const block = { sectionId: "header", kind: "announcement", id };
                     setActiveBlock(block);
-                    window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+                    postToEditor({ type: SPARK_BLOCK_CLICKED, block });
                 }}
                 onHeaderClick={selectHeader}
             />

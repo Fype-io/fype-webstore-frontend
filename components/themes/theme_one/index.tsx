@@ -11,7 +11,6 @@ export { default as Collections } from "./Collections";
 export { default as Community } from "./Community";
 export { default as FAQ } from "./FAQ";
 export { default as DynamicPage } from "./DynamicPage";
-export { default as CartView } from "./CartView";
 export { default as AccountLayout } from "./AccountLayout";
 export { default as AccountSidebar } from "./AccountSidebar";
 export { default as AccountOverview } from "./AccountOverview";

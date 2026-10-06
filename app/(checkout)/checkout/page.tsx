@@ -6,6 +6,7 @@ import { resolveActiveGateways } from "@/hooks/useActiveGateways";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import CheckoutView from "@/components/checkout/CheckoutView";
 import { getRequestHost } from "@/lib/request-host";
+import { resolveShipmentProvider } from "@/lib/shipment-provider";
 
 export const metadata: Metadata = { title: "Checkout" };
 
@@ -18,10 +19,8 @@ export default async function CheckoutPage() {
 
     if (!shop) return <ShopNotFound />;
 
-    const activeLogistics = shop.settings?.logistics?.active ?? ["manualShipping"];
-    const hasDeliveryApp =
-        (activeLogistics.includes("dtdc") && !!shop.settings?.logistics?.dtdc?.enabled) ||
-        (activeLogistics.includes("delhivery") && !!shop.settings?.logistics?.delhivery?.enabled);
+    const shipmentProvider = resolveShipmentProvider(shop);
+    const hasDeliveryApp = shipmentProvider !== "manual";
     const hasManualShipping = !hasDeliveryApp && !!shop.settings?.logistics?.manualShipping;
     const activeGateways = resolveActiveGateways(shop);
 
@@ -37,10 +36,10 @@ export default async function CheckoutPage() {
                 shopName={shop.shopName}
                 hasDeliveryApp={hasDeliveryApp}
                 hasManualShipping={hasManualShipping}
+                shipmentProvider={shipmentProvider}
                 activeGateways={activeGateways}
                 stripePublishableKey={shop.settings?.payment?.stripe?.publishableKey}
                 cod={shop.settings?.payment?.cod}
-                currency={shop.settings?.currency}
             />
         </>
     );

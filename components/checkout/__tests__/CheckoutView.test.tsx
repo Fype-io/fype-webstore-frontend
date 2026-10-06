@@ -5,9 +5,13 @@ import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import userReducer from "@/redux/slices/userSlice";
 import CheckoutView from "../CheckoutView";
+import { ORDER_NOW_NOTE } from "../checkoutUtils";
 import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter } from "@/hooks/useStripeAdapter";
 import { fetchStockForCartItems } from "@/lib/stock-api";
+import { calculateShippingRate } from "@/lib/shipping-api";
+import { postApi } from "@/lib/client-api";
+import { AxiosError, type AxiosResponse } from "axios";
 
 // Mock next/navigation's useRouter (CheckoutView calls router.push on success).
 vi.mock("next/navigation", () => ({
@@ -51,6 +55,7 @@ vi.mock("@/lib/client-api", async () => {
         ...actual,
         getApi: vi.fn().mockResolvedValue({ data: { success: true, data: { addresses: [TEST_ADDRESS] } } }),
         postApi: vi.fn().mockRejectedValue(new Error("not exercised in this test file")),
+        deleteApi: vi.fn().mockResolvedValue({ data: { success: true } }),
     };
 });
 
@@ -140,6 +145,7 @@ function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>
                 shopName="Test Shop"
                 hasDeliveryApp={false}
                 hasManualShipping={false}
+                shipmentProvider="manual"
                 activeGateways={[]}
                 {...props}
             />
@@ -155,11 +161,11 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
         vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe as any);
     });
 
-    it("neither gateway active: COD/manual-only, matching today's exact fallback behavior", async () => {
+    it("neither gateway active, no logistics app: \"Order now\" only, no COD", async () => {
         renderCheckout({ activeGateways: [] });
 
-        // Desktop payment method list is always in the DOM (hidden via CSS on mobile).
-        expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
+        expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
         expect(screen.queryByText("Pay via UPI")).not.toBeInTheDocument();
         expect(screen.queryByText("Card (international)")).not.toBeInTheDocument();
     });
@@ -242,54 +248,130 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
 const asRazorpay = (a: object) => a as unknown as ReturnType<typeof useRazorpayAdapter>;
 const asStripe = (a: object) => a as unknown as ReturnType<typeof useStripeAdapter>;
 
-describe("CheckoutView - cash on delivery setting and no-payment message", () => {
+// COD needs a logistics app that collects the cash (shipmentProvider dtdc/
+// delhivery), then follows the store's setting. With no gateway and no COD,
+// "Order now" places the order unpaid (paymentMethod "manual") and the store
+// arranges payment. It never appears alongside a gateway or COD.
+describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 0 } as Awaited<ReturnType<typeof calculateShippingRate>>);
         vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(notReadyRazorpay));
         vi.mocked(useStripeAdapter).mockReturnValue(asStripe(notReadyStripe));
+        vi.mocked(postApi).mockResolvedValue({ data: { success: true, data: { order: { orderNumber: "1001" } } } } as Awaited<ReturnType<typeof postApi>>);
     });
 
-    const NO_PAYMENTS = "This store isn't accepting payments right now. Please contact the store.";
+    const courier = { hasDeliveryApp: true, shipmentProvider: "dtdc" as const };
+    const orderNowButtons = () => screen.queryAllByRole("button", { name: /order now/i });
+    const postedPaymentMethod = () => (vi.mocked(postApi).mock.calls[0]?.[1] as { paymentMethod?: string } | undefined)?.paymentMethod;
 
-    it("COD turned off and no gateway: shows the message, no COD, Place order disabled", async () => {
-        renderCheckout({ activeGateways: [], cod: { enabled: false, minOrderValue: null } });
+    it("no payment app, no logistics app: only \"Order now\" (even with COD turned on); places a manual order", async () => {
+        const user = userEvent.setup();
+        renderCheckout({ activeGateways: [], cod: { enabled: true, minOrderValue: null } });
 
-        expect(await screen.findByRole("alert")).toHaveTextContent(NO_PAYMENTS);
+        expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
         expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /place order/i })).toBeDisabled();
+        expect(screen.queryByRole("button", { name: /place order/i })).not.toBeInTheDocument();
+        expect(document.querySelectorAll('input[type="radio"]')).toHaveLength(0);
+
+        const buttons = orderNowButtons();
+        expect(buttons).toHaveLength(2); // mobile + desktop
+        await waitFor(() => expect(buttons[1]).not.toBeDisabled()); // once the address loads
+        await user.click(buttons[1]!);
+
+        await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
+        expect(postedPaymentMethod()).toBe("manual");
     });
 
-    it("COD below its minimum and no gateway: says the minimum, in the store's currency", async () => {
-        renderCheckout({ activeGateways: [], cod: { enabled: true, minOrderValue: 500 }, currency: "INR" });
+    it("no payment app, logistics connected, COD turned on: COD shown, no \"Order now\"; placed as \"cod\"", async () => {
+        const user = userEvent.setup();
+        renderCheckout({ ...courier, activeGateways: [], cod: { enabled: true, minOrderValue: null } });
 
-        expect(await screen.findByRole("alert")).toHaveTextContent("Cash on delivery is available for orders of ₹500 or more.");
+        expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
+        expect(orderNowButtons()).toHaveLength(0);
+        expect(screen.queryByText(ORDER_NOW_NOTE)).not.toBeInTheDocument();
+
+        const placeOrder = screen.getByRole("button", { name: /place order/i });
+        await waitFor(() => expect(placeOrder).not.toBeDisabled());
+        await user.click(placeOrder);
+
+        await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
+        expect(postedPaymentMethod()).toBe("cod");
+    });
+
+    it("backend refuses COD (COD_REQUIRES_LOGISTICS, e.g. the logistics app was removed): a readable message, not a generic error", async () => {
+        const user = userEvent.setup();
+        vi.mocked(postApi).mockRejectedValue(
+            new AxiosError("Request failed", "ERR_BAD_REQUEST", undefined, undefined, {
+                status: 400,
+                data: { success: false, code: "COD_REQUIRES_LOGISTICS", message: "Cash on delivery isn't available for this store." },
+            } as AxiosResponse)
+        );
+        renderCheckout({ ...courier, activeGateways: [], cod: { enabled: true, minOrderValue: null } });
+
+        const placeOrder = await screen.findByRole("button", { name: /place order/i });
+        await waitFor(() => expect(placeOrder).not.toBeDisabled());
+        await user.click(placeOrder);
+
+        expect(
+            await screen.findByText(
+                "Cash on delivery isn't available for this store. This store's payment options have changed. Please refresh the page to see how you can pay."
+            )
+        ).toBeInTheDocument();
+        expect(screen.queryByText("Order creation failed. Please contact support.")).not.toBeInTheDocument();
+    });
+
+    it("no payment app, logistics connected, COD turned off: \"Order now\"", async () => {
+        renderCheckout({ ...courier, activeGateways: [], cod: { enabled: false, minOrderValue: null } });
+
+        expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
+        expect(orderNowButtons()).toHaveLength(2);
         expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
     });
 
-    it("COD turned on alongside a gateway: both are offered", async () => {
+    it("no payment app, logistics connected, COD below its minimum: \"Order now\"", async () => {
+        renderCheckout({ ...courier, activeGateways: [], cod: { enabled: true, minOrderValue: 500 } });
+
+        expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+    });
+
+    it("Razorpay connected, no logistics app: Razorpay only - no COD, no \"Order now\"", async () => {
         vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(readyRazorpay));
-
         renderCheckout({ activeGateways: ["razorpay"], cod: { enabled: true, minOrderValue: null } });
 
         expect(await screen.findByText("Pay via UPI")).toBeInTheDocument();
-        expect(screen.getByText("Cash on delivery")).toBeInTheDocument();
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+        expect(orderNowButtons()).toHaveLength(0);
+        expect(screen.queryByText(ORDER_NOW_NOTE)).not.toBeInTheDocument();
     });
 
-    it("COD turned off with a gateway: gateway methods only, no message", async () => {
-        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(readyStripe));
+    it("COD turned on alongside a gateway, logistics connected: both are offered, no \"Order now\"", async () => {
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(readyRazorpay));
+        renderCheckout({ ...courier, activeGateways: ["razorpay"], cod: { enabled: true, minOrderValue: null } });
 
-        renderCheckout({ activeGateways: ["stripe"], cod: { enabled: false } });
+        expect(await screen.findByText("Pay via UPI")).toBeInTheDocument();
+        expect(screen.getByText("Cash on delivery")).toBeInTheDocument();
+        expect(orderNowButtons()).toHaveLength(0);
+    });
+
+    it("COD turned off with a gateway: gateway methods only", async () => {
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(readyStripe));
+        renderCheckout({ ...courier, activeGateways: ["stripe"], cod: { enabled: false } });
 
         expect(await screen.findByText("Card (international)")).toBeInTheDocument();
         expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(orderNowButtons()).toHaveLength(0);
     });
 
-    it("never saved (older backend or no setting): COD only when no gateway is active, as before", async () => {
-        renderCheckout({ activeGateways: [], cod: { enabled: null } });
+    it("never saved (older backend or no setting): COD only with a logistics app and no gateway", async () => {
+        const { unmount } = renderCheckout({ ...courier, activeGateways: [], cod: { enabled: null } });
         expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        unmount();
+
+        renderCheckout({ activeGateways: [], cod: { enabled: null } });
+        expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
+        expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
     });
 });

@@ -30,21 +30,22 @@ import DeliveryAddressCard from "./DeliveryAddressCard";
 import PaymentMethodList from "./PaymentMethodList";
 import PaymentSummaryCard from "./PaymentSummaryCard";
 import SelectAddressPanel from "./SelectAddressPanel";
-import { addressKey, codAvailability, formatStoreMoney, PAYMENTS_UNAVAILABLE_MESSAGE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
+import { addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
+import type { ShipmentProvider } from "@/lib/shipment-provider";
 
 interface CheckoutViewProps {
     storeId: string;
     shopName?: string;
     hasDeliveryApp: boolean;
     hasManualShipping: boolean;
+    /** The store's resolved shipment provider (lib/shipment-provider.ts); COD needs one that collects cash. */
+    shipmentProvider: ShipmentProvider;
     /** Registered, adapter-backed gateway keys active for this store (e.g.
      * ['razorpay'], ['stripe'], both, or []) - see useActiveGateways. */
     activeGateways: string[];
     stripePublishableKey?: string;
     /** The store's cash-on-delivery setting (public settings payment.cod). */
     cod?: CodSetting;
-    /** The store's currency (public settings currency); null when not set. */
-    currency?: string | null;
 }
 
 const getCartHash = (items: { productId: string; variantId?: string; quantity: number }[]) =>
@@ -58,10 +59,10 @@ export default function CheckoutView({
     shopName,
     hasDeliveryApp,
     hasManualShipping,
+    shipmentProvider,
     activeGateways,
     stripePublishableKey,
     cod,
-    currency,
 }: CheckoutViewProps) {
     const dispatch = useAppDispatch();
     const router = useRouter();
@@ -87,19 +88,17 @@ export default function CheckoutView({
     const lastCallRef = useRef<{ cartHash: string | null; pincode: string | null }>({ cartHash: null, pincode: null });
 
     const shippingCost = hasDeliveryApp || hasManualShipping ? (shipmentState.deliveryCharge ?? cart?.shipping ?? 0) : (cart?.shipping ?? 0);
-    // COD follows the store's setting (on/off, minimum order value); a store that
-    // never saved it keeps the old rule: COD only when no online gateway is active.
+    // COD needs a logistics app that collects the cash, then follows the store's
+    // setting (on/off, minimum order value); a store that never saved it keeps the
+    // old rule: COD only when no online gateway is active.
     const hasPaymentGateway = activeGateways.length > 0;
     const orderTotal = (cart?.subtotal || 0) + (cart?.tax || 0) + shippingCost - (cart?.discount || 0);
-    const codState = codAvailability(cod, hasPaymentGateway, orderTotal);
-    const showCod = codState.offered;
+    const showCod = codAvailability(cod, hasPaymentGateway, orderTotal, shipmentProvider).offered;
     // COD is the only way to pay: chosen automatically, no method picker needed.
     const codOnly = showCod && !hasPaymentGateway;
-    // Nothing to pay with: no gateway, and COD off or below its minimum.
-    const paymentUnavailable = !hasPaymentGateway && !showCod;
-    const paymentUnavailableMessage = codState.minimum !== null
-        ? `Cash on delivery is available for orders of ${formatStoreMoney(codState.minimum, currency)} or more.`
-        : PAYMENTS_UNAVAILABLE_MESSAGE;
+    // Nothing else to pay with (no gateway, no COD): "Order now" places the order
+    // unpaid and the store arranges payment. Never shown alongside either.
+    const orderNow = !hasPaymentGateway && !showCod;
     const notServiceable = (hasDeliveryApp || hasManualShipping) && !shipmentState.serviceable;
 
     useEffect(() => {
@@ -240,12 +239,14 @@ export default function CheckoutView({
             // Backend is source of truth if the pre-check fails
         }
 
-        if (paymentUnavailable) {
-            setOrderError(paymentUnavailableMessage);
+        if (orderNow) {
+            await handleCreateOrder("manual");
             return;
         }
         if (codOnly || method === "cod") {
-            await handleCreateOrder("manual");
+            // "cod", not "manual": the backend books the courier with the COD
+            // amount only for paymentMethod "cod".
+            await handleCreateOrder("cod");
             return;
         }
 
@@ -375,8 +376,8 @@ export default function CheckoutView({
 
     const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
-    const ctaDisabled = !selectedAddress || notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading || paymentUnavailable;
-    const desktopPlaceDisabled = ctaDisabled || (!codOnly && !selectedPaymentMethod);
+    const ctaDisabled = !selectedAddress || notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading;
+    const desktopPlaceDisabled = ctaDisabled || (!codOnly && !orderNow && !selectedPaymentMethod);
 
     const checkoutMain = (
         <div className={`${view !== "checkout" ? "hidden md:flex" : "flex"} min-h-[100dvh] h-[100dvh] md:h-auto bg-gray-100 justify-center font-sans md:py-8 md:px-4`}>
@@ -414,31 +415,36 @@ export default function CheckoutView({
                             tatInfo={tatInfo?.deliveryDate}
                         />
 
-                        <PaymentMethodList
-                            total={total}
-                            methods={availableMethods}
-                            selected={codOnly ? (selectedPaymentMethod ?? "cod") : selectedPaymentMethod}
-                            onSelect={setSelectedPaymentMethod}
-                            variant="desktop"
-                        />
-
-                        {paymentUnavailable && (
-                            <div role="alert" className="p-3 bg-amber-50 text-amber-900 rounded-lg text-sm">
-                                {paymentUnavailableMessage}
-                            </div>
+                        {orderNow ? (
+                            <section className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-2 md:mt-5">
+                                <h2 className="text-[16px] sm:text-lg font-bold text-gray-800 tracking-tight">Payment</h2>
+                                <p className="text-gray-500 text-[13px] sm:text-sm font-medium">{ORDER_NOW_NOTE}</p>
+                            </section>
+                        ) : (
+                            <PaymentMethodList
+                                total={total}
+                                methods={availableMethods}
+                                selected={codOnly ? (selectedPaymentMethod ?? "cod") : selectedPaymentMethod}
+                                onSelect={setSelectedPaymentMethod}
+                                variant="desktop"
+                            />
                         )}
 
                         {orderError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{orderError}</div>}
                     </div>
 
                     <CheckoutCta
-                        label={addresses.length === 0 ? "Add address" : "Proceed to pay"}
+                        label={addresses.length === 0 ? "Add address" : orderNow ? "Order now" : "Proceed to pay"}
                         disabled={addresses.length === 0 ? false : ctaDisabled}
                         loading={processingOrder || isPaymentLoading}
                         onClick={() => {
                             if (addresses.length === 0) {
                                 setEditingAddress(null);
                                 setView("add-address");
+                                return;
+                            }
+                            if (orderNow) {
+                                handlePlaceOrder(null);
                                 return;
                             }
                             if (codOnly) {
@@ -463,7 +469,7 @@ export default function CheckoutView({
                         />
                         <CheckoutCta
                             boxed
-                            label="Place order"
+                            label={orderNow ? "Order now" : "Place order"}
                             disabled={desktopPlaceDisabled}
                             loading={processingOrder || isPaymentLoading}
                             onClick={() => {

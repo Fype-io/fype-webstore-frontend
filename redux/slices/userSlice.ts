@@ -14,6 +14,7 @@ import {
 } from "@/lib/client-api";
 import type { ApiResponse } from "@/types/api";
 import { trackShipment } from "@/lib/tracking-api";
+import { orderErrorMessage } from "@/lib/checkout-errors";
 
 // Trimmed port of the SPA's userSlice.ts — auth + cart + guest cart + wishlist
 // + addresses. Orders/tracking are still deferred to when those specific
@@ -109,6 +110,8 @@ export interface Order {
     /** Currency the order was placed in (orders from before PR1 have none). */
     currency?: string | null;
     paymentStatus: "pending" | "completed" | "paid" | "unpaid" | "cod" | "failed" | "refunded" | "partially_refunded";
+    /** "manual" = placed with "Order now" (the store arranges payment); absent from older APIs. */
+    paymentMethod?: string;
     totalRefunded?: number;
     cancellationReason?: string;
     trackingNumber?: string;
@@ -702,7 +705,9 @@ export const createOrder = createAsyncThunk(
 
             return response.data.data.order;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to create order"));
+            // Payment-option errors (COD needs a logistics app, "Order now" not
+            // available) say to refresh - see lib/checkout-errors.ts.
+            return rejectWithValue(orderErrorMessage(error, "Failed to create order"));
         }
     }
 );

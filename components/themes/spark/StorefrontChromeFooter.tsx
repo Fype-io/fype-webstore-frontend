@@ -27,6 +27,7 @@ export default function StorefrontChromeFooter({ shopName, navbar, footerPages, 
             socialMedia={config.theme_settings.social_media}
             footerLogoUrl={config.theme_settings.logo.footer_logo_url}
             footerLogoWidth={config.theme_settings.logo.footer_logo_width}
+            shopName={shopName}
         />
     );
 }

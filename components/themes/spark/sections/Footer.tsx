@@ -10,6 +10,8 @@ interface FooterProps {
     socialMedia: SparkThemeSettingsSocialMedia;
     footerLogoUrl: string;
     footerLogoWidth: number;
+    // Store name for the copyright line; falls back to the theme name.
+    shopName?: string;
     isEditorPreview?: boolean;
     activeBlockId?: string | null;
     onBlockClick?: (kind: "text" | "menu", id: string) => void;
@@ -75,6 +77,7 @@ export default function Footer({
     socialMedia,
     footerLogoUrl,
     footerLogoWidth,
+    shopName,
     isEditorPreview = false,
     activeBlockId = null,
     onBlockClick,
@@ -195,7 +198,7 @@ export default function Footer({
                 <hr className="border-t border-current opacity-20 mb-8" />
                 <div className="flex items-center justify-between gap-6 text-sm opacity-80 flex-col md:flex-row">
                     <p>
-                        Copyright © {new Date().getFullYear()} Spark.{" "}
+                        Copyright © {new Date().getFullYear()} {shopName?.trim() || "Spark"}.{" "}
                         <a href="https://www.fype.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
                             Powered by Fype
                         </a>

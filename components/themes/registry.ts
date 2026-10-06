@@ -67,14 +67,6 @@ export interface ProductDetailsPageProps {
     themeConfig?: Record<string, unknown>;
 }
 
-// Props for a theme's self-contained Cart page.
-export interface CartPageProps {
-    shop: ShopIdentity;
-    navPages: Page[];
-    footerPages: Page[];
-    bestSellerProducts: StorefrontProduct[];
-}
-
 // Props for a theme's self-contained Collection (single-collection listing)
 // page — new with Spark's Collection List section; theme_one has no
 // concept of this yet (same "not retrofitting theme_one" pattern already
@@ -114,7 +106,6 @@ export type PartialThemeModule = Partial<ThemeModule> & {
     HomePage?: ComponentType<HomePageProps>;
     ProductsPage?: ComponentType<ProductsPageProps>;
     ProductDetailsPage?: ComponentType<ProductDetailsPageProps>;
-    CartPage?: ComponentType<CartPageProps>;
     CollectionPage?: ComponentType<CollectionPageProps>;
     CollectionsPage?: ComponentType<CollectionsPageProps>;
 };
@@ -127,7 +118,6 @@ export type ResolvedThemeModule = ThemeModule & {
     HomePage?: ComponentType<HomePageProps>;
     ProductsPage?: ComponentType<ProductsPageProps>;
     ProductDetailsPage?: ComponentType<ProductDetailsPageProps>;
-    CartPage?: ComponentType<CartPageProps>;
     CollectionPage?: ComponentType<CollectionPageProps>;
     CollectionsPage?: ComponentType<CollectionsPageProps>;
 };

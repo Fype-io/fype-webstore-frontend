@@ -286,7 +286,7 @@ export default function CheckoutView({
         dispatch(removeFromCart({ storeId, itemId: item._id, variantId: item.variantId }));
         // Removing the last item would otherwise leave the user staring at
         // checkout's own "cart is empty" state - go back to wherever they
-        // came from (normally /cart) instead.
+        // came from instead.
         if (cart?.items.length === 1) {
             router.back();
         }
@@ -361,7 +361,7 @@ export default function CheckoutView({
         return (
             <div className="min-h-[100dvh] bg-gray-100 flex flex-col font-sans">
                 <div className="w-full max-w-md mx-auto bg-white min-h-[100dvh] md:min-h-0 md:mt-8 md:rounded-2xl md:border md:border-gray-200 overflow-hidden">
-                    <CheckoutHeader title="Checkout" backHref="/cart" />
+                    <CheckoutHeader title="Checkout" />
                     <div className="p-8 text-center">
                         <p className="text-xl text-gray-600 mb-4">Your cart is empty</p>
                         <Link href="/products" className="inline-block px-6 py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800">
@@ -382,7 +382,7 @@ export default function CheckoutView({
         <div className={`${view !== "checkout" ? "hidden md:flex" : "flex"} min-h-[100dvh] h-[100dvh] md:h-auto bg-gray-100 justify-center font-sans md:py-8 md:px-4`}>
             <div className="w-full max-w-md md:max-w-4xl lg:max-w-5xl flex md:gap-6 lg:gap-8 relative overflow-hidden md:overflow-visible mx-auto">
                 <div className="w-full bg-white md:rounded-2xl h-full md:h-auto md:min-h-[600px] relative flex flex-col shadow-2xl md:shadow-sm md:border border-gray-200 overflow-hidden md:flex-1">
-                    <CheckoutHeader title="Checkout" backHref="/cart" />
+                    <CheckoutHeader title="Checkout" />
 
                     <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 sm:py-6 flex flex-col gap-5 sm:gap-8 pb-4 sm:pb-6">
                         <div className="md:hidden">

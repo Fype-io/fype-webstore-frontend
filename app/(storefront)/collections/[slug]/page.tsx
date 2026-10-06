@@ -5,10 +5,10 @@ import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getCollec
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import { isVerifiedEditorPreview } from "@/lib/editor-preview-server";
 
 interface CollectionPageRouteProps {
     params: Promise<{ slug: string }>;
-    searchParams: Promise<{ editorPreview?: string }>;
 }
 
 const PLACEHOLDER_COLLECTION_IMAGE =
@@ -47,9 +47,8 @@ export async function generateMetadata({ params }: CollectionPageRouteProps): Pr
 // same "not retrofitting theme_one" pattern as every other Spark-only
 // addition in this codebase; theme_one 404s here rather than falling back
 // to a generic implementation nothing asked for.
-export default async function CollectionPageRoute({ params, searchParams }: CollectionPageRouteProps) {
+export default async function CollectionPageRoute({ params }: CollectionPageRouteProps) {
     const { slug } = await params;
-    const { editorPreview } = await searchParams;
     const data = await getSharedShopData();
 
     if (!data || !data.theme) return <ShopNotFound />;
@@ -58,7 +57,7 @@ export default async function CollectionPageRoute({ params, searchParams }: Coll
     const collection = await getCollectionBySlug(apiBaseUrl, shop.shopId, slug);
 
     // Real customer traffic 404s exactly as before when the slug doesn't
-    // match a real collection. The editor iframe (?editorPreview=1) instead
+    // match a real collection. The verified editor iframe instead
     // gets a synthesized placeholder so a store with zero collections can
     // still customize the Collection Page's layout/banner before creating
     // one — same "isEditorPreview placeholder" convention already used by
@@ -66,7 +65,7 @@ export default async function CollectionPageRoute({ params, searchParams }: Coll
     // the whole-route level since this page has no real data to fall back
     // into otherwise. A real collection always wins the lookup above, so
     // this can never shadow an actual store collection.
-    if (!collection && editorPreview !== "1") notFound();
+    if (!collection && !(await isVerifiedEditorPreview(shop.shopId))) notFound();
 
     const resolvedCollection = collection ?? {
         _id: "placeholder-collection",

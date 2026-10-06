@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import { STOREFRONT_UNLOCK_COOKIE } from "@/lib/storefront-gate";
+import { STOREFRONT_UNLOCK_COOKIE, signUnlockCookie } from "@/lib/storefront-gate";
+import { getStorefrontTokenSecret } from "@/lib/storefront-token-secret";
 import { getRequestHost } from "@/lib/request-host";
 
 export async function POST(request: NextRequest) {
@@ -17,6 +18,12 @@ export async function POST(request: NextRequest) {
     try {
         apiBaseUrl = await getApiBaseUrl();
     } catch {
+        return NextResponse.json({ success: false, message: "Storefront is not configured" }, { status: 500 });
+    }
+    // Without it the cookie couldn't be signed (or verified), so don't even
+    // check the password.
+    const secret = await getStorefrontTokenSecret();
+    if (!secret) {
         return NextResponse.json({ success: false, message: "Storefront is not configured" }, { status: 500 });
     }
 
@@ -40,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true, shopId: json.data.shopId });
-    response.cookies.set(STOREFRONT_UNLOCK_COOKIE, json.data.shopId, {
+    response.cookies.set(STOREFRONT_UNLOCK_COOKIE, await signUnlockCookie(json.data.shopId, secret), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",

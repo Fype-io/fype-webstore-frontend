@@ -11,10 +11,10 @@ import {
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import { isVerifiedEditorPreview } from "@/lib/editor-preview-server";
 
 interface ProductDetailsPageProps {
     params: Promise<{ productId: string }>;
-    searchParams: Promise<{ editorPreview?: string }>;
 }
 
 const PLACEHOLDER_PRODUCT_IMAGE =
@@ -69,9 +69,8 @@ export async function generateMetadata({ params }: ProductDetailsPageProps): Pro
     return { title: product ? `${product.name} - ${storeName}` : `Product Details - ${storeName}` };
 }
 
-export default async function ProductDetailsPage({ params, searchParams }: ProductDetailsPageProps) {
+export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
     const { productId } = await params;
-    const { editorPreview } = await searchParams;
     const data = await getSharedShopData();
 
     if (!data || !data.theme) return <ShopNotFound />;
@@ -85,7 +84,7 @@ export default async function ProductDetailsPage({ params, searchParams }: Produ
     // synthesized placeholder so a store with zero real products can still
     // customize the Product Detail page's layout — same convention as the
     // Collection Page route's placeholder fallback.
-    const usePlaceholder = !fetched.product && editorPreview === "1";
+    const usePlaceholder = !fetched.product && (await isVerifiedEditorPreview(shop.shopId));
     const product = usePlaceholder ? placeholderProductDetail() : fetched.product;
     const variants = usePlaceholder ? [] : fetched.variants;
     const variantOptions = usePlaceholder ? null : fetched.variantOptions;

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ProductSortBy } from "@/types/storefront";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { isEditorPreview } from "@/lib/editor-preview";
 
 const SORT_OPTIONS: Array<{ value: ProductSortBy; label: string }> = [
     { value: "newest", label: "Newest" },
@@ -53,6 +54,11 @@ export default function ProductFilters({ defaultSort }: ProductFiltersProps) {
     }, []);
 
     const updateParams = (updates: Record<string, string | undefined>) => {
+        // Not in the customizer's preview: like a link click there, this is a
+        // page change (EditorPreviewNavigationLock), and the request would no
+        // longer carry the preview token once it's out of the URL - a
+        // protected store would answer with its password page.
+        if (isEditorPreview()) return;
         const params = new URLSearchParams(searchParams.toString());
         Object.entries(updates).forEach(([key, value]) => {
             if (value) params.set(key, value);

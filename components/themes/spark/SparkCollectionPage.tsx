@@ -11,6 +11,7 @@ import { SPARK_BLOCK_CLICKED, SPARK_DRAFT_READY, SPARK_DRAFT_UPDATE, SPARK_SECTI
 import type { CollectionSummary, ShopIdentity, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
+import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 
 const PLACEHOLDER_IMAGE = "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
 
@@ -76,12 +77,12 @@ export default function SparkCollectionPage({
 
     useEffect(() => {
         if (typeof window === "undefined" || window.parent === window) return;
-        if (new URLSearchParams(window.location.search).get("editorPreview") !== "1") return;
+        if (!isEditorPreviewFrame()) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsEditorPreview(true);
 
         function handleMessage(event: MessageEvent) {
-            if (event.source !== window.parent || !event.data) return;
+            if (!isEditorMessage(event) || !event.data) return;
             if (event.data.type === SPARK_DRAFT_UPDATE) {
                 setLiveConfig((current) => mergeSparkConfig(current, event.data.config as SparkConfigOverride));
             } else if (event.data.type === SPARK_SET_ACTIVE_SECTION) {
@@ -92,7 +93,7 @@ export default function SparkCollectionPage({
         }
 
         window.addEventListener("message", handleMessage);
-        window.parent.postMessage({ type: SPARK_DRAFT_READY, config: initialConfig }, "*");
+        postToEditor({ type: SPARK_DRAFT_READY, config: initialConfig });
         return () => window.removeEventListener("message", handleMessage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -146,18 +147,18 @@ export default function SparkCollectionPage({
     // const visibleAnnouncementBlocks = announcementBar.settings.show ? announcementBar.settings.blocks.filter((b) => !b.hidden) : [];
 
     const selectLayout = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "page_settings:collection_page" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "page_settings:collection_page" });
     };
     const selectHeader = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "header" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "header" });
     };
     const selectFooter = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "footer" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "footer" });
     };
     const selectFooterBlock = (kind: "text" | "menu", id: string) => {
         const block = { sectionId: "footer", kind, id };
         setActiveBlock(block);
-        window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+        postToEditor({ type: SPARK_BLOCK_CLICKED, block });
     };
 
     return (
@@ -171,7 +172,7 @@ export default function SparkCollectionPage({
                 onAnnouncementClick={(id) => {
                     const block = { sectionId: "header", kind: "announcement", id };
                     setActiveBlock(block);
-                    window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+                    postToEditor({ type: SPARK_BLOCK_CLICKED, block });
                 }}
                 onHeaderClick={selectHeader}
             />

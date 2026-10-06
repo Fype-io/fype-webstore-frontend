@@ -4,6 +4,9 @@ import Script from "next/script";
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import { getApiBaseUrl, getShopByDomain, getTheme } from "@/lib/storefront-api";
 import { enforceStorefrontPassword } from "@/lib/enforce-storefront-password";
+import { isVerifiedEditorPreview } from "@/lib/editor-preview-server";
+import { EDITOR_PREVIEW_MARKER_ID } from "@/lib/editor-preview";
+import { getEditorAdminOrigins } from "@/lib/editor-admin-origins";
 import Providers from "@/components/shared/Providers";
 import EditorPreviewNavigationLock from "@/components/shared/EditorPreviewNavigationLock";
 import { getRequestHost } from "@/lib/request-host";
@@ -58,8 +61,14 @@ export default async function StorefrontLayout({ children }: { children: React.R
     const marketing = shop?.settings?.marketing;
     const metaPixelId = marketing?.metaPixel?.enabled ? marketing.metaPixel.pixelId : undefined;
     const gtmContainerId = marketing?.googleTagManager?.enabled ? marketing.googleTagManager.containerId : undefined;
-    const showMetaPixel = !!metaPixelId && META_PIXEL_ID_PATTERN.test(metaPixelId);
-    const showGtm = !!gtmContainerId && GTM_CONTAINER_ID_PATTERN.test(gtmContainerId);
+    // The theme customizer's verified preview: editor-only UI on, and no
+    // GTM/Meta Pixel - its URL carries the preview token, which those scripts
+    // would collect, and a merchant's editing isn't store traffic.
+    const editorPreview = shop ? await isVerifiedEditorPreview(shop.shopId) : false;
+    // The client checks editor messages against these (lib/editor-preview.ts).
+    const editorAdminOrigins = editorPreview ? await getEditorAdminOrigins() : [];
+    const showMetaPixel = !editorPreview && !!metaPixelId && META_PIXEL_ID_PATTERN.test(metaPixelId);
+    const showGtm = !editorPreview && !!gtmContainerId && GTM_CONTAINER_ID_PATTERN.test(gtmContainerId);
 
     return (
         <>
@@ -81,6 +90,9 @@ export default async function StorefrontLayout({ children }: { children: React.R
                     (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
                     fbq('init','${metaPixelId}');`}
                 </Script>
+            )}
+            {editorPreview && (
+                <span id={EDITOR_PREVIEW_MARKER_ID} data-verified="1" data-admin-origins={editorAdminOrigins.join(" ")} hidden />
             )}
             <Providers storeId={shop?.shopId} currency={shop?.settings?.currency}>
                 <EditorPreviewNavigationLock />

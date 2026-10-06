@@ -18,6 +18,7 @@ import { sparkLayoutStyle } from "./sparkLayout";
 import { useSparkCart } from "./SparkCartContext";
 import type { SparkProductHighlight } from "./sparkConfig";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 
 const NEW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const HIGHLIGHT_ICONS = [Truck, RefreshCw, Shield];
@@ -66,12 +67,12 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
 
     useEffect(() => {
         if (typeof window === "undefined" || window.parent === window) return;
-        if (new URLSearchParams(window.location.search).get("editorPreview") !== "1") return;
+        if (!isEditorPreviewFrame()) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsEditorPreview(true);
 
         function handleMessage(event: MessageEvent) {
-            if (event.source !== window.parent || !event.data) return;
+            if (!isEditorMessage(event) || !event.data) return;
             if (event.data.type === SPARK_DRAFT_UPDATE) {
                 setLiveConfig((current) => mergeSparkConfig(current, event.data.config as SparkConfigOverride));
             } else if (event.data.type === SPARK_SET_ACTIVE_SECTION) {
@@ -82,7 +83,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
         }
 
         window.addEventListener("message", handleMessage);
-        window.parent.postMessage({ type: SPARK_DRAFT_READY, config: liveConfig }, "*");
+        postToEditor({ type: SPARK_DRAFT_READY, config: liveConfig });
         return () => window.removeEventListener("message", handleMessage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -94,23 +95,23 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     const { logo: logoSettings, social_media: socialMedia } = liveConfig.theme_settings;
 
     const selectLayout = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "page_settings:product" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "page_settings:product" });
     };
     const selectHeader = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "header" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "header" });
     };
     const selectFooter = () => {
-        window.parent.postMessage({ type: SPARK_SECTION_CLICKED, section: "footer" }, "*");
+        postToEditor({ type: SPARK_SECTION_CLICKED, section: "footer" });
     };
     const selectFooterBlock = (kind: "text" | "menu", id: string) => {
         const block = { sectionId: "footer", kind, id };
         setActiveBlock(block);
-        window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+        postToEditor({ type: SPARK_BLOCK_CLICKED, block });
     };
     const selectAnnouncementBlock = (id: string) => {
         const block = { sectionId: "header", kind: "announcement", id };
         setActiveBlock(block);
-        window.parent.postMessage({ type: SPARK_BLOCK_CLICKED, block }, "*");
+        postToEditor({ type: SPARK_BLOCK_CLICKED, block });
     };
 
     const isWishlisted = !!product && wishlist.includes(product.productId);

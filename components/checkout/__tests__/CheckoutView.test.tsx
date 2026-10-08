@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
@@ -67,6 +67,20 @@ vi.mock("@/lib/client-api", async () => {
 // the adapter matching the selected method, and the COD/manual fallback.
 vi.mock("@/hooks/useRazorpayAdapter", () => ({ useRazorpayAdapter: vi.fn() }));
 vi.mock("@/hooks/useStripeAdapter", () => ({ useStripeAdapter: vi.fn() }));
+
+// Stripe's own express buttons are covered by StripeExpressCheckout.test.tsx; here
+// the component is replaced by a stub that records the props CheckoutView hands it.
+const { expressProps } = vi.hoisted(() => ({ expressProps: { current: null as any } }));
+vi.mock("../StripeExpressCheckout", async () => {
+    const actual = await vi.importActual<typeof import("../StripeExpressCheckout")>("../StripeExpressCheckout");
+    return {
+        ...actual,
+        default: (props: unknown) => {
+            expressProps.current = props;
+            return <div data-testid="express-checkout" />;
+        },
+    };
+});
 
 const notReadyRazorpay = { key: "razorpay", isReady: false, isLoading: false, availableMethods: [], open: vi.fn() };
 const readyRazorpay = {
@@ -373,5 +387,85 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
         renderCheckout({ activeGateways: [], cod: { enabled: null } });
         expect(await screen.findByText(ORDER_NOW_NOTE)).toBeInTheDocument();
         expect(screen.queryByText("Cash on delivery")).not.toBeInTheDocument();
+    });
+});
+
+describe("CheckoutView - Stripe express checkout buttons", () => {
+    const EXPRESS = { paymentMethodTypes: ["card", "link"], wallets: { applePay: true, googlePay: true } };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        expressProps.current = null;
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay as never);
+        vi.mocked(useStripeAdapter).mockReturnValue({ ...readyStripe, stripe: { id: "stripe-js" } } as never);
+        vi.mocked(postApi).mockResolvedValue({ data: { success: true, data: { order: { orderNumber: "1001" } } } } as Awaited<ReturnType<typeof postApi>>);
+    });
+
+    it("shows them above the payment list once an address is selected, with the order total in minor units", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
+
+        expect(await screen.findByTestId("express-checkout")).toBeInTheDocument();
+        expect(expressProps.current).toMatchObject({
+            storeId: "store-1",
+            currency: "INR",
+            totalMinor: 10000,
+            config: EXPRESS,
+            shippingAddress: expect.objectContaining({ postalCode: "400001" }),
+        });
+        expect(expressProps.current.stripe).toEqual({ id: "stripe-js" });
+        expect(screen.getByText("Card (international)")).toBeInTheDocument();
+    });
+
+    it.each([
+        ["Stripe isn't an active gateway", { activeGateways: [] as string[], stripeExpress: EXPRESS, currency: "INR" }],
+        ["the store sent no express config (older backend)", { activeGateways: ["stripe"], currency: "INR" }],
+        ["the store turned every express method off", { activeGateways: ["stripe"], stripeExpress: { paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: false } }, currency: "INR" }],
+        ["the store currency is unknown", { activeGateways: ["stripe"], stripeExpress: EXPRESS }],
+    ])("is not shown when %s", async (_why, props) => {
+        renderCheckout(props);
+
+        // The address is fetched and selected after mount; the buttons would appear by now if they were going to.
+        expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
+        expect(screen.queryByTestId("express-checkout")).not.toBeInTheDocument();
+    });
+
+    it("places the order through the normal path, as a Stripe payment, once the wallet payment is verified", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
+        await screen.findByTestId("express-checkout");
+
+        await act(async () => {
+            await expressProps.current.onPaid({ paymentIntentId: "pi_9" });
+        });
+
+        await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(postApi).mock.calls[0]?.[1]).toMatchObject({
+            paymentMethod: "stripe",
+            gateway: "stripe",
+            gatewayRef: { paymentIntentId: "pi_9" },
+        });
+    });
+
+    it("runs the same stock check as the card flow before anything is charged", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
+        await screen.findByTestId("express-checkout");
+
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({ prod1: 0 });
+        await expect(expressProps.current.beforePay()).resolves.toBe("Some items have insufficient stock. Please update your cart.");
+
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({ prod1: 5 });
+        await expect(expressProps.current.beforePay()).resolves.toBeNull();
+
+        vi.mocked(fetchStockForCartItems).mockRejectedValue(new Error("offline"));
+        await expect(expressProps.current.beforePay()).resolves.toBeNull();
+    });
+
+    it("shows a payment error from the buttons to the shopper", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
+        await screen.findByTestId("express-checkout");
+
+        act(() => expressProps.current.onError("The price changed. Please review your order and try again."));
+
+        expect(await screen.findByText("The price changed. Please review your order and try again.")).toBeInTheDocument();
     });
 });

@@ -115,7 +115,13 @@ export interface ShopIdentity {
         payment?: {
             active?: string[];
             razorpay?: { enabled?: boolean; keyId?: string };
-            stripe?: { enabled?: boolean; publishableKey?: string };
+            stripe?: {
+                enabled?: boolean;
+                publishableKey?: string;
+                // The payment_method_types the store's PaymentIntents use, and which wallets it allows.
+                paymentMethodTypes?: string[];
+                wallets?: { applePay: boolean; googlePay: boolean };
+            };
             // Cash on delivery; enabled null = never saved (legacy rule).
             cod?: { enabled?: boolean | null; minOrderValue?: number | null };
         };

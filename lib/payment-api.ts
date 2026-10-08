@@ -15,6 +15,9 @@ export interface GatewayOrderResponse {
     keyId?: string;
     publishableKey?: string;
     clientSecret?: string;
+    // Stripe only: which wallets the store allows in the Payment Element. Absent
+    // from an older backend, which leaves Stripe's own defaults.
+    wallets?: { applePay: boolean; googlePay: boolean };
     // Added by the server-priced checkout: the session reference and the totals
     // (major units) the amount was computed from.
     checkoutId?: string;

@@ -29,6 +29,7 @@ import CheckoutHeader from "./CheckoutHeader";
 import DeliveryAddressCard from "./DeliveryAddressCard";
 import PaymentMethodList from "./PaymentMethodList";
 import PaymentSummaryCard from "./PaymentSummaryCard";
+import StripeExpressCheckout, { hasExpressMethods, type StripeExpressConfig } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
 import { addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
 import type { ShipmentProvider } from "@/lib/shipment-provider";
@@ -44,6 +45,10 @@ interface CheckoutViewProps {
      * ['razorpay'], ['stripe'], both, or []) - see useActiveGateways. */
     activeGateways: string[];
     stripePublishableKey?: string;
+    /** Which Stripe methods the store allows (public settings); drives the express checkout buttons. */
+    stripeExpress?: StripeExpressConfig;
+    /** The store's currency code; the express buttons need it before any payment exists. */
+    currency?: string;
     /** The store's cash-on-delivery setting (public settings payment.cod). */
     cod?: CodSetting;
 }
@@ -62,6 +67,8 @@ export default function CheckoutView({
     shipmentProvider,
     activeGateways,
     stripePublishableKey,
+    stripeExpress,
+    currency,
     cod,
 }: CheckoutViewProps) {
     const dispatch = useAppDispatch();
@@ -219,10 +226,9 @@ export default function CheckoutView({
         }
     };
 
-    const handlePlaceOrder = async (method: PaymentMethodId | null = selectedPaymentMethod) => {
-        if (!cart?.items.length || !selectedAddress) return;
-        setOrderError(null);
-
+    // An error message when a cart item is out of stock, otherwise null.
+    const checkCartStock = async (): Promise<string | null> => {
+        if (!cart) return null;
         try {
             const freshStock = await fetchStockForCartItems(storeId, cart.items);
             const hasIssue = cart.items.some((item) => {
@@ -231,12 +237,21 @@ export default function CheckoutView({
                 if (available === null || available === undefined) return false;
                 return item.quantity > available;
             });
-            if (hasIssue) {
-                setOrderError("Some items have insufficient stock. Please update your cart.");
-                return;
-            }
+            if (hasIssue) return "Some items have insufficient stock. Please update your cart.";
         } catch {
             // Backend is source of truth if the pre-check fails
+        }
+        return null;
+    };
+
+    const handlePlaceOrder = async (method: PaymentMethodId | null = selectedPaymentMethod) => {
+        if (!cart?.items.length || !selectedAddress) return;
+        setOrderError(null);
+
+        const stockError = await checkCartStock();
+        if (stockError) {
+            setOrderError(stockError);
+            return;
         }
 
         if (orderNow) {
@@ -376,6 +391,15 @@ export default function CheckoutView({
 
     const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
+    const showExpress =
+        activeGateways.includes("stripe") &&
+        hasExpressMethods(stripeExpress) &&
+        !!currency &&
+        !!user &&
+        !!selectedAddress &&
+        !notServiceable &&
+        !orderNow &&
+        total > 0;
     const ctaDisabled = !selectedAddress || notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading;
     const desktopPlaceDisabled = ctaDisabled || (!codOnly && !orderNow && !selectedPaymentMethod);
 
@@ -421,13 +445,30 @@ export default function CheckoutView({
                                 <p className="text-gray-500 text-[13px] sm:text-sm font-medium">{ORDER_NOW_NOTE}</p>
                             </section>
                         ) : (
-                            <PaymentMethodList
-                                total={total}
-                                methods={availableMethods}
-                                selected={codOnly ? (selectedPaymentMethod ?? "cod") : selectedPaymentMethod}
-                                onSelect={setSelectedPaymentMethod}
-                                variant="desktop"
-                            />
+                            <>
+                                {showExpress && stripeExpress && currency && selectedAddress && (
+                                    <StripeExpressCheckout
+                                        stripe={stripeAdapter.stripe}
+                                        storeId={storeId}
+                                        currency={currency}
+                                        totalMinor={Math.round(total * 100)}
+                                        config={stripeExpress}
+                                        shippingAddress={selectedAddress as unknown as Record<string, unknown>}
+                                        billingAddress={selectedAddress as unknown as Record<string, unknown>}
+                                        disabled={isCalculatingShipping || processingOrder}
+                                        beforePay={checkCartStock}
+                                        onPaid={(gatewayRef) => handleCreateOrder("stripe", "stripe", gatewayRef)}
+                                        onError={setOrderError}
+                                    />
+                                )}
+                                <PaymentMethodList
+                                    total={total}
+                                    methods={availableMethods}
+                                    selected={codOnly ? (selectedPaymentMethod ?? "cod") : selectedPaymentMethod}
+                                    onSelect={setSelectedPaymentMethod}
+                                    variant="desktop"
+                                />
+                            </>
                         )}
 
                         {orderError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{orderError}</div>}

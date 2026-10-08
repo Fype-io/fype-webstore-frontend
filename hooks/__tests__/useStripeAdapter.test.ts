@@ -18,10 +18,10 @@ vi.mock("@stripe/stripe-js", () => ({
 // the adapter's contract (readiness gating, order-creation call, verification
 // call, gatewayRef shape), not Stripe.js's real UI.
 
-function mockStripeInstance(overrides: Partial<{ confirmPayment: any }> = {}) {
+function mockStripeInstance(overrides: Partial<{ confirmPayment: any; create: any }> = {}) {
     return {
         elements: vi.fn().mockReturnValue({
-            create: vi.fn().mockReturnValue({ mount: vi.fn() }),
+            create: overrides.create ?? vi.fn().mockReturnValue({ mount: vi.fn() }),
         }),
         confirmPayment: overrides.confirmPayment ?? vi.fn().mockResolvedValue({ paymentIntent: { id: "pi_mock1" } }),
     };
@@ -98,6 +98,45 @@ describe("useStripeAdapter", () => {
         expect(openResult.gatewayRef).toEqual({ paymentIntentId: "pi_mock1" });
         // The overlay must be cleaned up from the DOM after completion.
         expect(document.body.querySelector("button")).toBeNull();
+    });
+
+    it.each([
+        [{ applePay: true, googlePay: false }, { applePay: "auto", googlePay: "never" }],
+        [{ applePay: false, googlePay: false }, { applePay: "never", googlePay: "never" }],
+    ])("passes the store's wallet flags %j to the Payment Element", async (wallets, expected) => {
+        const create = vi.fn().mockReturnValue({ mount: vi.fn() });
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }) as any);
+        vi.mocked(createGatewayOrder).mockResolvedValue({
+            orderId: "pi_w", amount: 10000, currency: "inr", clientSecret: "pi_w_secret", wallets,
+        });
+        vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: true });
+
+        const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: "pk_test_abc" }));
+        await waitFor(() => expect(result.current.isReady).toBe(true));
+
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
+        await waitFor(() => expect(create).toHaveBeenCalled());
+        expect(create).toHaveBeenCalledWith("payment", { wallets: expected });
+
+        Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === PAY_LABEL)!.click();
+        await openPromise;
+    });
+
+    it("leaves Stripe's own wallet defaults when the backend sends no wallet flags", async () => {
+        const create = vi.fn().mockReturnValue({ mount: vi.fn() });
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }) as any);
+        vi.mocked(createGatewayOrder).mockResolvedValue({ orderId: "pi_o", amount: 10000, currency: "inr", clientSecret: "pi_o_secret" });
+        vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: true });
+
+        const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: "pk_test_abc" }));
+        await waitFor(() => expect(result.current.isReady).toBe(true));
+
+        const openPromise = result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } });
+        await waitFor(() => expect(create).toHaveBeenCalled());
+        expect(create).toHaveBeenCalledWith("payment", {});
+
+        Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === PAY_LABEL)!.click();
+        await openPromise;
     });
 
     it("open() rejects when the customer cancels", async () => {

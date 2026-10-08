@@ -41,7 +41,12 @@ export function payButtonLabel(amountMinor: number, currency: string): string {
     }
 }
 
-function collectStripePayment(stripe: Stripe, clientSecret: string, payLabel = "Pay"): Promise<{ paymentIntentId: string } | null> {
+function collectStripePayment(
+    stripe: Stripe,
+    clientSecret: string,
+    payLabel = "Pay",
+    wallets?: { applePay: boolean; googlePay: boolean }
+): Promise<{ paymentIntentId: string } | null> {
     return new Promise((resolve, reject) => {
         const overlay = document.createElement("div");
         overlay.style.cssText =
@@ -68,7 +73,10 @@ function collectStripePayment(stripe: Stripe, clientSecret: string, payLabel = "
         };
 
         const elements: StripeElements = stripe.elements({ clientSecret });
-        const paymentElement = elements.create("payment");
+        const paymentElement = elements.create(
+            "payment",
+            wallets ? { wallets: { applePay: wallets.applePay ? "auto" : "never", googlePay: wallets.googlePay ? "auto" : "never" } } : {}
+        );
         paymentElement.mount(paymentElementContainer);
 
         cancelButton.onclick = () => {
@@ -90,7 +98,10 @@ function collectStripePayment(stripe: Stripe, clientSecret: string, payLabel = "
     });
 }
 
-export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOptions): CheckoutGatewayAdapter {
+/** The Stripe adapter also hands out its loaded Stripe.js instance for the express checkout buttons. */
+export type StripeCheckoutAdapter = CheckoutGatewayAdapter & { stripe: Stripe | null };
+
+export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOptions): StripeCheckoutAdapter {
     const [stripe, setStripe] = useState<Stripe | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -121,7 +132,7 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
                     throw new Error("Failed to create payment order");
                 }
 
-                const result = await collectStripePayment(stripe, orderData.clientSecret, payButtonLabel(orderData.amount, orderData.currency));
+                const result = await collectStripePayment(stripe, orderData.clientSecret, payButtonLabel(orderData.amount, orderData.currency), orderData.wallets);
                 if (!result) {
                     throw new Error("Payment cancelled");
                 }
@@ -145,5 +156,6 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
         isLoading,
         availableMethods: STRIPE_METHODS,
         open,
+        stripe,
     };
 }

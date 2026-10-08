@@ -39,6 +39,15 @@ export default async function CheckoutPage() {
                 shipmentProvider={shipmentProvider}
                 activeGateways={activeGateways}
                 stripePublishableKey={shop.settings?.payment?.stripe?.publishableKey}
+                stripeExpress={
+                    shop.settings?.payment?.stripe?.paymentMethodTypes && shop.settings.payment.stripe.wallets
+                        ? {
+                              paymentMethodTypes: shop.settings.payment.stripe.paymentMethodTypes,
+                              wallets: shop.settings.payment.stripe.wallets,
+                          }
+                        : undefined
+                }
+                currency={shop.settings?.currency ?? undefined}
                 cod={shop.settings?.payment?.cod}
             />
         </>

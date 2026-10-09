@@ -1,7 +1,7 @@
 import type { HomePageProps } from "@/components/themes/registry";
 import SparkHome from "./SparkHome";
 import { buildSparkNavItems, mergeSparkConfig, sparkDefaultConfig } from "./sparkConfig";
-import { getApiBaseUrl, getCollectionById, getCollectionProducts, getProductDetails, getCollectionsByIds } from "@/lib/storefront-api";
+import { getApiBaseUrl, getCollectionById, getCollectionGroup, getCollectionProducts, getProductDetails, getCollectionsByIds } from "@/lib/storefront-api";
 
 // Spark's self-contained Home page — reads the store's real saved
 // `themeConfig` (Theme.themeConfig, a Mixed field since Spark's shape
@@ -43,7 +43,10 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
     );
     const featuredProductInstances = config.sections.body.filter((s) => s.type === "featured_product" && !s.hidden && s.settings.product_id);
     const collectionListInstances = config.sections.body.filter(
-        (s) => s.type === "collection_list" && !s.hidden && s.settings.collection_ids.length > 0
+        (s) =>
+            s.type === "collection_list" &&
+            !s.hidden &&
+            (s.settings.source === "group" ? Boolean(s.settings.collection_group_id) : s.settings.collection_ids.length > 0)
     );
 
     const initialFeaturedCollectionProducts: Record<string, Awaited<ReturnType<typeof getCollectionProducts>>> = {};
@@ -72,7 +75,10 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
             }),
             ...collectionListInstances.map(async (instance) => {
                 if (instance.type !== "collection_list") return;
-                initialCollectionListCollections[instance.id] = await getCollectionsByIds(apiBaseUrl, shop.shopId, instance.settings.collection_ids);
+                initialCollectionListCollections[instance.id] =
+                    instance.settings.source === "group"
+                        ? ((await getCollectionGroup(apiBaseUrl, shop.shopId, instance.settings.collection_group_id ?? ""))?.collections ?? [])
+                        : await getCollectionsByIds(apiBaseUrl, shop.shopId, instance.settings.collection_ids);
             }),
         ]);
     }

@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type {
     Category,
+    CollectionGroupDetail,
     CollectionSummary,
     Page,
     PaginationMeta,
@@ -94,6 +95,18 @@ export interface CollectionsPageProps {
     themeConfig?: Record<string, unknown>;
 }
 
+// Props for a theme's collection group page ("Shop by brand" style landing
+// page): the group's own title/description above a grid of its collections.
+// Same "not retrofitting theme_one" pattern: a theme without it 404s the route.
+export interface CollectionGroupPageProps {
+    shop: ShopIdentity;
+    navPages: Page[];
+    footerPages: Page[];
+    group: CollectionGroupDetail["group"];
+    collections: CollectionSummary[];
+    themeConfig?: Record<string, unknown>;
+}
+
 // A theme beyond theme_one may only implement a subset of ThemeModule's shape
 // — e.g. a brand-new HomePage using a genuinely different config schema (see
 // MIGRATION_RUNBOOK.md Phase 4 decision #2: "each theme owns an arbitrary,
@@ -108,6 +121,7 @@ export type PartialThemeModule = Partial<ThemeModule> & {
     ProductDetailsPage?: ComponentType<ProductDetailsPageProps>;
     CollectionPage?: ComponentType<CollectionPageProps>;
     CollectionsPage?: ComponentType<CollectionsPageProps>;
+    CollectionGroupPage?: ComponentType<CollectionGroupPageProps>;
 };
 
 // What loadTheme() in lib/theme.ts actually returns after merging a theme
@@ -120,6 +134,7 @@ export type ResolvedThemeModule = ThemeModule & {
     ProductDetailsPage?: ComponentType<ProductDetailsPageProps>;
     CollectionPage?: ComponentType<CollectionPageProps>;
     CollectionsPage?: ComponentType<CollectionsPageProps>;
+    CollectionGroupPage?: ComponentType<CollectionGroupPageProps>;
 };
 
 export const themeRegistry: Record<ThemeSlug, () => Promise<PartialThemeModule>> = {

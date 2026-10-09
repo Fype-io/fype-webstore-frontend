@@ -4,6 +4,7 @@ export { default as ProductsPage } from "./ProductsPage";
 export { default as ProductDetailsPage } from "./ProductDetailsPage";
 export { default as CollectionPage } from "./CollectionPage";
 export { default as CollectionsPage } from "./CollectionsPage";
+export { default as CollectionGroupPage } from "./CollectionGroupPage";
 export { default as Header } from "./StorefrontChromeHeader";
 export { default as Footer } from "./StorefrontChromeFooter";
 export { default as AccountLayout } from "./AccountLayout";

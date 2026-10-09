@@ -24,6 +24,10 @@ interface SparkCollectionsProps {
     shop: ShopIdentity;
     navItems: Array<{ label: string; href: string }>;
     collections: CollectionSummary[];
+    // Set by the collection group page, which reuses this layout with the
+    // group's own title/description instead of the Collections page settings.
+    heading?: string;
+    subheading?: string;
 }
 
 // Client Component — same live-editing + canvas hover/selected overlay
@@ -34,7 +38,7 @@ interface SparkCollectionsProps {
 // selected-state border + label, and clicking anywhere in the content area
 // posts SPARK_SECTION_CLICKED with the 'page_settings:collections' sentinel
 // to open the sidebar's "Layout" row.
-export default function SparkCollections({ initialConfig, shop, navItems, collections }: SparkCollectionsProps) {
+export default function SparkCollections({ initialConfig, shop, navItems, collections, heading, subheading }: SparkCollectionsProps) {
     const [liveConfig, setLiveConfig] = useState(initialConfig);
     const [isEditorPreview, setIsEditorPreview] = useState(false);
     const [isSelected, setIsSelected] = useState(false);
@@ -130,8 +134,8 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
             )}
             <div className="py-12 md:py-16 px-6 max-w-7xl mx-auto">
                 <div className="text-center mb-16">
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{settings.page_title}</h1>
-                    <p className="text-gray-500 text-lg max-w-xl mx-auto">{settings.subtitle}</p>
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{heading ?? settings.page_title}</h1>
+                    <p className="text-gray-500 text-lg max-w-xl mx-auto">{subheading ?? settings.subtitle}</p>
                 </div>
 
                 {collections.length > 0 ? (

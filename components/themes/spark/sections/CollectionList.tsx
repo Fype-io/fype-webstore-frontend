@@ -51,11 +51,28 @@ function placeholderCollections(count: number): CollectionSummary[] {
 // per-tile selection here.
 export default function CollectionList({ settings, storeId, initialCollections = [], isEditorPreview = false }: CollectionListProps) {
     const [collections, setCollections] = useState<CollectionSummary[]>(initialCollections);
-    const ssrKey = useRef(settings.collection_ids.join(",")).current;
+    // What the list is built from: a collection group's id, or the picked ids.
+    // Changes live in the editor re-fetch; the SSR'd set is kept until then.
+    const isGroup = settings.source === "group";
+    const sourceKey = isGroup ? `group:${settings.collection_group_id ?? ""}` : `pick:${settings.collection_ids.join(",")}`;
+    const ssrKey = useRef(sourceKey).current;
 
     useEffect(() => {
-        const key = settings.collection_ids.join(",");
-        if (key === ssrKey) return;
+        if (sourceKey === ssrKey) return;
+        if (isGroup) {
+            const groupId = settings.collection_group_id;
+            if (!groupId) {
+                setCollections([]);
+                return;
+            }
+            let cancelled = false;
+            getApi<{ data: { collections: CollectionSummary[] } }>(`/commerce/${storeId}/storefront/collection-groups/${groupId}`)
+                .then((res) => !cancelled && setCollections(res.data?.data?.collections ?? []))
+                .catch(() => !cancelled && setCollections([]));
+            return () => {
+                cancelled = true;
+            };
+        }
         if (settings.collection_ids.length === 0) {
             setCollections([]);
             return;
@@ -74,7 +91,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [settings.collection_ids.join(","), storeId]);
+    }, [sourceKey, storeId]);
 
     const displayCollections = collections.length > 0 ? collections : isEditorPreview ? placeholderCollections(PLACEHOLDER_COLLECTION_COUNT) : [];
     const isPlaceholder = collections.length === 0 && displayCollections.length > 0;
@@ -90,7 +107,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
         >
             {isPlaceholder && (
                 <div className="mb-4 text-xs text-gray-400 border border-dashed border-gray-300 rounded px-3 py-1.5 inline-block">
-                    Preview content — pick collections to replace this
+                    Preview content — {isGroup ? "choose a collection group" : "pick collections"} to replace this
                 </div>
             )}
             <div className="flex items-end justify-between mb-12">

@@ -182,6 +182,20 @@ export interface CollectionSummary {
     thumbnailUrl?: string;
 }
 
+// A published collection group with its visible collections in display order
+// (GET /:storeId/storefront/collection-groups/:idOrSlug). Collections with no
+// product a shopper could see are already left out by the API.
+export interface CollectionGroupDetail {
+    group: {
+        _id: string;
+        name: string;
+        slug: string;
+        description?: string;
+        thumbnailUrl?: string;
+    };
+    collections: CollectionSummary[];
+}
+
 export interface PaginationMeta {
     currentPage: number;
     totalPages: number;

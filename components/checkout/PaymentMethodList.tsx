@@ -2,6 +2,7 @@
 
 import type { PaymentMethodId } from "./checkoutUtils";
 import type { PaymentMethodOption } from "@/types/checkoutGateway";
+import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 
@@ -11,6 +12,8 @@ interface PaymentMethodListProps {
     selected: PaymentMethodId | null;
     onSelect: (method: PaymentMethodId) => void;
     variant: "desktop" | "mobile";
+    /** Shown under the mobile list, e.g. the chosen wallet's pay button. */
+    footer?: ReactNode;
 }
 
 export function UpiChips() {
@@ -32,8 +35,9 @@ export function UpiChips() {
 
 // PaymentMethodOption doesn't carry an amount/hidden flag (those were
 // artifacts of the old hardcoded array) - every method passed in is shown,
-// all at the same `total` amount, same as before.
-export default function PaymentMethodList({ total, methods, selected, onSelect, variant }: PaymentMethodListProps) {
+// all at the same `total` amount, same as before. A disabled method is shown
+// greyed out and can't be picked.
+export default function PaymentMethodList({ total, methods, selected, onSelect, variant, footer }: PaymentMethodListProps) {
     const { format } = useStoreCurrency();
     if (variant === "desktop") {
         return (
@@ -43,7 +47,8 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                     {methods.map((method) => (
                         <label
                             key={method.id}
-                            className={`rounded-[20px] border p-4 sm:p-5 flex items-center justify-between cursor-pointer transition-colors shadow-sm ${selected === method.id ? "border-gray-900 bg-gray-50/50" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                            aria-disabled={method.disabled || undefined}
+                            className={`rounded-[20px] border p-4 sm:p-5 flex items-center justify-between transition-colors shadow-sm ${method.disabled ? "cursor-not-allowed opacity-50 border-gray-200 bg-white" : `cursor-pointer ${selected === method.id ? "border-gray-900 bg-gray-50/50" : "border-gray-200 hover:border-gray-300 bg-white"}`}`}
                         >
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
@@ -62,6 +67,7 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                                     name="paymentMethod"
                                     value={method.id}
                                     checked={selected === method.id}
+                                    disabled={method.disabled}
                                     onChange={() => onSelect(method.id)}
                                     className="hidden"
                                 />
@@ -79,8 +85,9 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                 <button
                     key={method.id}
                     type="button"
+                    disabled={method.disabled}
                     onClick={() => onSelect(method.id)}
-                    className={`bg-white rounded-[20px] border p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-gray-300 transition-colors shadow-sm text-left ${selected === method.id ? "border-gray-900" : "border-gray-200"}`}
+                    className={`bg-white rounded-[20px] border p-4 sm:p-5 flex items-center justify-between transition-colors shadow-sm text-left ${method.disabled ? "cursor-not-allowed opacity-50 border-gray-200" : `cursor-pointer hover:border-gray-300 ${selected === method.id ? "border-gray-900" : "border-gray-200"}`}`}
                 >
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
@@ -95,6 +102,7 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                     </div>
                 </button>
             ))}
+            {footer}
         </div>
     );
 }

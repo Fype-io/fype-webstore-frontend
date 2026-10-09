@@ -29,7 +29,7 @@ import CheckoutHeader from "./CheckoutHeader";
 import DeliveryAddressCard from "./DeliveryAddressCard";
 import PaymentMethodList from "./PaymentMethodList";
 import PaymentSummaryCard from "./PaymentSummaryCard";
-import StripeExpressCheckout, { hasExpressMethods, type StripeExpressConfig } from "./StripeExpressCheckout";
+import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, type StripeExpressConfig, type WalletAvailability } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
 import { addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
 import type { ShipmentProvider } from "@/lib/shipment-provider";
@@ -45,9 +45,9 @@ interface CheckoutViewProps {
      * ['razorpay'], ['stripe'], both, or []) - see useActiveGateways. */
     activeGateways: string[];
     stripePublishableKey?: string;
-    /** Which Stripe methods the store allows (public settings); drives the express checkout buttons. */
+    /** Which Stripe methods the store allows (public settings); adds a Google Pay / Apple Pay row per enabled wallet. */
     stripeExpress?: StripeExpressConfig;
-    /** The store's currency code; the express buttons need it before any payment exists. */
+    /** The store's currency code; the wallet buttons need it before any payment exists. */
     currency?: string;
     /** The store's cash-on-delivery setting (public settings payment.cod). */
     cod?: CodSetting;
@@ -82,7 +82,7 @@ export default function CheckoutView({
     const [addressToDelete, setAddressToDelete] = useState<string | null>(null);
     const [savingAddress, setSavingAddress] = useState(false);
     const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(true);
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodId | null>(null);
+    const [pickedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodId | null>(null);
     const [tatInfo, setTatInfo] = useState<{ deliveryDate?: string } | null>(null);
     const [shipmentState, setShipmentState] = useState<{ serviceable: boolean; deliveryCharge: number | null; reason?: string }>({
         serviceable: true,
@@ -91,6 +91,11 @@ export default function CheckoutView({
     const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
     const [processingOrder, setProcessingOrder] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    const [walletAvailability, setWalletAvailability] = useState<WalletAvailability>({});
+    // A wallet picked before Stripe reported this device can't use it counts as unpicked.
+    const pickedWallet = walletOf(pickedPaymentMethod);
+    const selectedPaymentMethod = pickedWallet && walletAvailability[pickedWallet] === false ? null : pickedPaymentMethod;
+    const selectedWallet = walletOf(selectedPaymentMethod);
     const [prevAddresses, setPrevAddresses] = useState(addresses);
     const lastCallRef = useRef<{ cartHash: string | null; pincode: string | null }>({ cartHash: null, pincode: null });
 
@@ -126,7 +131,12 @@ export default function CheckoutView({
         stripe: stripeAdapter,
     };
     const activeAdapters = activeGateways.map((key) => adaptersByGateway[key]).filter((a): a is NonNullable<typeof a> => !!a);
-    const gatewayMethods: PaymentMethodOption[] = activeAdapters.filter((a) => a.isReady).flatMap((a) => a.availableMethods);
+    // Each wallet the store enabled is its own row after Stripe's card, listed even
+    // when this device can't use it (greyed out), since the store chose to offer it.
+    const walletMethods = stripeWalletMethods(stripeExpress, walletAvailability);
+    const gatewayMethods: PaymentMethodOption[] = activeAdapters
+        .filter((a) => a.isReady)
+        .flatMap((a) => (a.key === "stripe" ? [...a.availableMethods, ...walletMethods] : a.availableMethods));
     // COD isn't owned by any gateway adapter - kept as a standalone entry,
     // same as before multi-gateway support, shown only when no gateway is active.
     const codMethod: PaymentMethodOption = { id: "cod", gatewayKey: "manual", title: "Cash on delivery", subtitle: "Pay with cash" };
@@ -269,6 +279,12 @@ export default function CheckoutView({
         const totalAmount = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
         if (totalAmount <= 0) return;
 
+        // A wallet pays from Stripe's own button, which replaces this one when it's chosen.
+        if (walletOf(method)) {
+            setOrderError("Use the payment button below to pay.");
+            return;
+        }
+
         const gatewayKey = methodToGateway.get(method);
         const adapter = gatewayKey ? adaptersByGateway[gatewayKey] : undefined;
         if (!gatewayKey || !adapter) {
@@ -391,15 +407,29 @@ export default function CheckoutView({
 
     const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
-    const showExpress =
-        activeGateways.includes("stripe") &&
-        hasExpressMethods(stripeExpress) &&
-        !!currency &&
-        !!user &&
-        !!selectedAddress &&
-        !notServiceable &&
-        !orderNow &&
-        total > 0;
+    // The wallet rows need Stripe.js, the store currency and a positive total to learn
+    // whether this device can use them; paying also needs a signed-in shopper and an address.
+    const canCheckWallets =
+        activeGateways.includes("stripe") && enabledWallets(stripeExpress).length > 0 && !!stripeAdapter.stripe && !!currency && !orderNow && total > 0;
+    const walletPayable = canCheckWallets && !!selectedWallet && !!user && !!selectedAddress && !notServiceable;
+    const walletButton =
+        walletPayable && stripeExpress && currency && selectedWallet && selectedAddress ? (
+            <StripeExpressCheckout
+                key={selectedWallet}
+                stripe={stripeAdapter.stripe}
+                storeId={storeId}
+                currency={currency}
+                totalMinor={Math.round(total * 100)}
+                config={stripeExpress}
+                wallet={selectedWallet}
+                shippingAddress={selectedAddress as unknown as Record<string, unknown>}
+                billingAddress={selectedAddress as unknown as Record<string, unknown>}
+                disabled={isCalculatingShipping || processingOrder}
+                beforePay={checkCartStock}
+                onPaid={(gatewayRef) => handleCreateOrder("stripe", "stripe", gatewayRef)}
+                onError={setOrderError}
+            />
+        ) : null;
     const ctaDisabled = !selectedAddress || notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading;
     const desktopPlaceDisabled = ctaDisabled || (!codOnly && !orderNow && !selectedPaymentMethod);
 
@@ -446,19 +476,19 @@ export default function CheckoutView({
                             </section>
                         ) : (
                             <>
-                                {showExpress && stripeExpress && currency && selectedAddress && (
+                                {canCheckWallets && stripeExpress && currency && (
                                     <StripeExpressCheckout
+                                        hidden
                                         stripe={stripeAdapter.stripe}
                                         storeId={storeId}
                                         currency={currency}
                                         totalMinor={Math.round(total * 100)}
                                         config={stripeExpress}
-                                        shippingAddress={selectedAddress as unknown as Record<string, unknown>}
-                                        billingAddress={selectedAddress as unknown as Record<string, unknown>}
-                                        disabled={isCalculatingShipping || processingOrder}
-                                        beforePay={checkCartStock}
-                                        onPaid={(gatewayRef) => handleCreateOrder("stripe", "stripe", gatewayRef)}
-                                        onError={setOrderError}
+                                        onAvailabilityChange={setWalletAvailability}
+                                        shippingAddress={(selectedAddress ?? {}) as unknown as Record<string, unknown>}
+                                        beforePay={async () => "Use the payment button to pay."}
+                                        onPaid={async () => undefined}
+                                        onError={() => undefined}
                                     />
                                 )}
                                 <PaymentMethodList
@@ -508,20 +538,25 @@ export default function CheckoutView({
                             shippingCalculating={isCalculatingShipping}
                             total={total}
                         />
-                        <CheckoutCta
-                            boxed
-                            label={orderNow ? "Order now" : "Place order"}
-                            disabled={desktopPlaceDisabled}
-                            loading={processingOrder || isPaymentLoading}
-                            onClick={() => {
-                                if (addresses.length === 0) {
-                                    setEditingAddress(null);
-                                    setView("add-address");
-                                    return;
-                                }
-                                handlePlaceOrder(codOnly ? selectedPaymentMethod ?? "cod" : selectedPaymentMethod);
-                            }}
-                        />
+                        {walletButton ? (
+                            // A chosen wallet pays from Stripe's own button, in place of "Place order".
+                            <div className="w-full bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">{walletButton}</div>
+                        ) : (
+                            <CheckoutCta
+                                boxed
+                                label={orderNow ? "Order now" : "Place order"}
+                                disabled={desktopPlaceDisabled}
+                                loading={processingOrder || isPaymentLoading}
+                                onClick={() => {
+                                    if (addresses.length === 0) {
+                                        setEditingAddress(null);
+                                        setView("add-address");
+                                        return;
+                                    }
+                                    handlePlaceOrder(codOnly ? selectedPaymentMethod ?? "cod" : selectedPaymentMethod);
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
@@ -570,9 +605,12 @@ export default function CheckoutView({
                 selected={selectedPaymentMethod}
                 onSelect={async (method) => {
                     setSelectedPaymentMethod(method);
+                    // A wallet pays from its own button (shown below the list), not on tap.
+                    if (walletOf(method)) return;
                     await handlePlaceOrder(method);
                 }}
                 variant="mobile"
+                footer={walletButton}
             />
             {orderError && <div className="px-4 pb-4"><div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{orderError}</div></div>}
         </>

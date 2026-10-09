@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Stripe.js is stubbed with partial mocks */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import StripeExpressCheckout, { expressPaymentMethodsOption, hasExpressMethods, type StripeExpressConfig } from "../StripeExpressCheckout";
+import StripeExpressCheckout, {
+    enabledWallets,
+    expressPaymentMethodsOption,
+    stripeWalletMethods,
+    walletOf,
+    WALLET_UNAVAILABLE_SUBTITLE,
+    type StripeExpressConfig,
+} from "../StripeExpressCheckout";
 import { createGatewayOrder, verifyGatewayPayment } from "@/lib/payment-api";
 
 vi.mock("@/lib/payment-api", () => ({
@@ -64,20 +71,58 @@ beforeEach(() => {
     vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: true });
 });
 
-describe("store method flags", () => {
-    it("maps the wallet flags and Link to Stripe's auto/never options", () => {
-        expect(expressPaymentMethodsOption(CONFIG)).toEqual({ applePay: "auto", googlePay: "never", link: "auto" });
+describe("store wallet flags", () => {
+    it("shows an enabled wallet always (not only when Stripe judges the shopper ready); never Link", () => {
+        expect(expressPaymentMethodsOption(CONFIG)).toEqual({ applePay: "always", googlePay: "never", link: "never" });
         expect(expressPaymentMethodsOption({ paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: true } })).toEqual({
             applePay: "never",
-            googlePay: "auto",
+            googlePay: "always",
             link: "never",
         });
     });
 
-    it("reports no express methods when the store turned them all off or sent no config", () => {
-        expect(hasExpressMethods(CONFIG)).toBe(true);
-        expect(hasExpressMethods({ paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: false } })).toBe(false);
-        expect(hasExpressMethods(undefined)).toBe(false);
+    it("narrows the buttons to one wallet, and never shows a wallet the store turned off", () => {
+        const both: StripeExpressConfig = { paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } };
+        expect(expressPaymentMethodsOption(both, "googlePay")).toEqual({ applePay: "never", googlePay: "always", link: "never" });
+        expect(expressPaymentMethodsOption(CONFIG, "googlePay")).toEqual({ applePay: "never", googlePay: "never", link: "never" });
+    });
+
+    it("lists the enabled wallets, or none without config", () => {
+        expect(enabledWallets({ paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } })).toEqual(["googlePay", "applePay"]);
+        expect(enabledWallets(CONFIG)).toEqual(["applePay"]);
+        expect(enabledWallets(undefined)).toEqual([]);
+    });
+
+    it("maps wallet rows back to their wallet", () => {
+        expect(walletOf("stripe_google_pay")).toBe("googlePay");
+        expect(walletOf("stripe_apple_pay")).toBe("applePay");
+        expect(walletOf("stripe_card")).toBeNull();
+        expect(walletOf(null)).toBeNull();
+    });
+});
+
+describe("stripeWalletMethods (payment-method rows)", () => {
+    const BOTH: StripeExpressConfig = { paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } };
+
+    it("lists one Stripe row per enabled wallet, pickable while availability is unknown", () => {
+        const rows = stripeWalletMethods(BOTH, {});
+        expect(rows.map((r) => [r.id, r.gatewayKey, r.title, !!r.disabled])).toEqual([
+            ["stripe_google_pay", "stripe", "Google Pay", false],
+            ["stripe_apple_pay", "stripe", "Apple Pay", false],
+        ]);
+    });
+
+    it("keeps a wallet this device can't use listed, but disabled with the reason", () => {
+        const [google, apple] = stripeWalletMethods(BOTH, { googlePay: true, applePay: false });
+        expect(google).toMatchObject({ id: "stripe_google_pay" });
+        expect(google!.disabled).toBeUndefined();
+        expect(apple).toMatchObject({ id: "stripe_apple_pay", disabled: true, subtitle: WALLET_UNAVAILABLE_SUBTITLE });
+    });
+
+    it("lists nothing for wallets the store turned off, or without config", () => {
+        expect(stripeWalletMethods(CONFIG, {}).map((r) => r.id)).toEqual(["stripe_apple_pay"]);
+        expect(stripeWalletMethods({ paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: false } }, {})).toEqual([]);
+        expect(stripeWalletMethods(undefined, {})).toEqual([]);
     });
 });
 
@@ -92,31 +137,31 @@ describe("StripeExpressCheckout", () => {
             paymentMethodTypes: ["card", "link"],
         });
         expect(elements.create).toHaveBeenCalledWith("expressCheckout", {
-            paymentMethods: { applePay: "auto", googlePay: "never", link: "auto" },
+            paymentMethods: { applePay: "always", googlePay: "never", link: "never" },
         });
         expect(express.mount).toHaveBeenCalledTimes(1);
     });
 
-    it("never breaks checkout when Stripe.js throws while setting up the buttons", () => {
+    it("never breaks checkout when Stripe.js throws, and reports the wallets unavailable", () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
         const stripe = { elements: vi.fn(() => { throw new Error("Invalid value for elements()"); }) };
+        const onAvailabilityChange = vi.fn();
 
-        expect(() => render(<StripeExpressCheckout {...baseProps()} stripe={stripe as any} />)).not.toThrow();
+        expect(() => render(<StripeExpressCheckout {...baseProps()} stripe={stripe as any} onAvailabilityChange={onAvailabilityChange} />)).not.toThrow();
 
-        expect(screen.queryByText("Express checkout")).not.toBeInTheDocument();
         expect(warn).toHaveBeenCalledWith("[StripeExpressCheckout] could not start:", "Invalid value for elements()");
+        expect(onAvailabilityChange).toHaveBeenCalledWith({ applePay: false });
         warn.mockRestore();
     });
 
-    it("hides the section when the element reports a load error", async () => {
+    it("reports a load error as every requested wallet unavailable", () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-        const { handlers } = renderExpress();
-        act(() => handlers["ready"]!({ availablePaymentMethods: { applePay: false, googlePay: false, link: true } }));
-        expect(await screen.findByText("Express checkout")).toBeInTheDocument();
+        const onAvailabilityChange = vi.fn();
+        const { handlers } = renderExpress({ config: { paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } }, onAvailabilityChange });
 
-        act(() => handlers["loaderror"]!({ error: { message: "Link is not enabled" } }));
+        act(() => handlers["loaderror"]!({ error: { message: "Google Pay is not enabled" } }));
 
-        expect(screen.queryByText("Express checkout")).not.toBeInTheDocument();
+        expect(onAvailabilityChange).toHaveBeenCalledWith({ applePay: false, googlePay: false });
         warn.mockRestore();
     });
 
@@ -125,15 +170,38 @@ describe("StripeExpressCheckout", () => {
         expect(elements.create).not.toHaveBeenCalled();
     });
 
-    it("shows the heading only when the browser can offer a method", async () => {
-        const { handlers } = renderExpress();
-        expect(screen.queryByText("Express checkout")).not.toBeInTheDocument();
+    it("reports which enabled wallets this browser can use, and nothing for wallets the store turned off", () => {
+        const onAvailabilityChange = vi.fn();
+        const { handlers } = renderExpress({ config: { paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } }, onAvailabilityChange });
 
+        act(() => handlers["ready"]!({ availablePaymentMethods: { applePay: false, googlePay: true, link: true } }));
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith({ applePay: false, googlePay: true });
+
+        // Stripe sends no methods at all when the browser can use none of them.
         act(() => handlers["ready"]!({ availablePaymentMethods: undefined }));
-        expect(screen.queryByText("Express checkout")).not.toBeInTheDocument();
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith({ applePay: false, googlePay: false });
+    });
 
-        act(() => handlers["ready"]!({ availablePaymentMethods: { applePay: false, googlePay: false, link: true } }));
-        expect(await screen.findByText("Express checkout")).toBeInTheDocument();
+    it("narrowed to one wallet: shows only that wallet's button and reports only it", () => {
+        const onAvailabilityChange = vi.fn();
+        const { elements, handlers } = renderExpress({
+            config: { paymentMethodTypes: ["card"], wallets: { applePay: true, googlePay: true } },
+            wallet: "googlePay",
+            onAvailabilityChange,
+        });
+
+        expect(elements.create).toHaveBeenCalledWith("expressCheckout", { paymentMethods: { applePay: "never", googlePay: "always", link: "never" } });
+        act(() => handlers["ready"]!({ availablePaymentMethods: { applePay: true, googlePay: true } }));
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith({ googlePay: true });
+        expect(screen.getByTestId("stripe-wallet-button")).toBeInTheDocument();
+    });
+
+    it("as a hidden probe, renders off-screen (not display:none, so Stripe still reports)", () => {
+        renderExpress({ hidden: true });
+        const probe = screen.getByTestId("stripe-wallet-probe");
+        expect(probe.classList.contains("invisible")).toBe(true);
+        expect(probe.classList.contains("hidden")).toBe(false);
+        expect(screen.queryByTestId("stripe-wallet-button")).not.toBeInTheDocument();
     });
 
     it("keeps the Elements amount in step with the total without remounting", () => {

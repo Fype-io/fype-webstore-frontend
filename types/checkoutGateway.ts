@@ -17,6 +17,8 @@ export interface PaymentMethodOption {
     title: string;
     subtitle: string;
     extra?: ReactNode;
+    /** Listed but can't be picked (e.g. a wallet this device can't use); the subtitle says why. */
+    disabled?: boolean;
 }
 
 export interface GatewayOrderRef {

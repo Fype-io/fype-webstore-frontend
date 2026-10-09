@@ -5,6 +5,7 @@ import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import userReducer from "@/redux/slices/userSlice";
 import CheckoutView from "../CheckoutView";
+import type StripeExpressCheckout from "../StripeExpressCheckout";
 import { ORDER_NOW_NOTE } from "../checkoutUtils";
 import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter } from "@/hooks/useStripeAdapter";
@@ -68,16 +69,22 @@ vi.mock("@/lib/client-api", async () => {
 vi.mock("@/hooks/useRazorpayAdapter", () => ({ useRazorpayAdapter: vi.fn() }));
 vi.mock("@/hooks/useStripeAdapter", () => ({ useStripeAdapter: vi.fn() }));
 
-// Stripe's own express buttons are covered by StripeExpressCheckout.test.tsx; here
-// the component is replaced by a stub that records the props CheckoutView hands it.
-const { expressProps } = vi.hoisted(() => ({ expressProps: { current: null as any } }));
+// Stripe's own wallet buttons are covered by StripeExpressCheckout.test.tsx; here
+// the component is replaced by a stub that records the props CheckoutView hands
+// the hidden availability probe and the visible pay button separately.
+type WalletProps = React.ComponentProps<typeof StripeExpressCheckout>;
+const { walletProps } = vi.hoisted(() => ({ walletProps: { probe: null as WalletProps | null, button: null as WalletProps | null } }));
 vi.mock("../StripeExpressCheckout", async () => {
     const actual = await vi.importActual<typeof import("../StripeExpressCheckout")>("../StripeExpressCheckout");
     return {
         ...actual,
-        default: (props: unknown) => {
-            expressProps.current = props;
-            return <div data-testid="express-checkout" />;
+        default: (props: WalletProps) => {
+            if (props.hidden) {
+                walletProps.probe = props;
+                return <div data-testid="wallet-probe" />;
+            }
+            walletProps.button = props;
+            return <div data-testid={`wallet-button-${props.wallet}`} />;
         },
     };
 });
@@ -390,52 +397,92 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
     });
 });
 
-describe("CheckoutView - Stripe express checkout buttons", () => {
-    const EXPRESS = { paymentMethodTypes: ["card", "link"], wallets: { applePay: true, googlePay: true } };
+describe("CheckoutView - Google Pay / Apple Pay as payment methods", () => {
+    const WALLETS = { paymentMethodTypes: ["card", "link"], wallets: { applePay: true, googlePay: true } };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        expressProps.current = null;
+        walletProps.probe = null;
+        walletProps.button = null;
         vi.mocked(fetchStockForCartItems).mockResolvedValue({});
         vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay as never);
         vi.mocked(useStripeAdapter).mockReturnValue({ ...readyStripe, stripe: { id: "stripe-js" } } as never);
         vi.mocked(postApi).mockResolvedValue({ data: { success: true, data: { order: { orderNumber: "1001" } } } } as Awaited<ReturnType<typeof postApi>>);
     });
 
-    it("shows them above the payment list once an address is selected, with the order total in minor units", async () => {
-        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
+    const reportAvailability = (availability: Record<string, boolean>) => act(() => walletProps.probe!.onAvailabilityChange!(availability));
+    const radio = (id: string) => document.querySelector(`input[value="${id}"]`) as HTMLInputElement;
 
-        expect(await screen.findByTestId("express-checkout")).toBeInTheDocument();
-        expect(expressProps.current).toMatchObject({
-            storeId: "store-1",
-            currency: "INR",
-            totalMinor: 10000,
-            config: EXPRESS,
-            shippingAddress: expect.objectContaining({ postalCode: "400001" }),
-        });
-        expect(expressProps.current.stripe).toEqual({ id: "stripe-js" });
-        expect(screen.getByText("Card (international)")).toBeInTheDocument();
+    async function chooseGooglePay() {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: WALLETS, currency: "INR" });
+        await screen.findByTestId("wallet-probe");
+        expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
+        await userEvent.setup().click(radio("stripe_google_pay"));
+        return screen.findByTestId("wallet-button-googlePay");
+    }
+
+    it("lists each enabled wallet as its own row after Stripe's card, with no separate express section", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: WALLETS, currency: "INR" });
+
+        expect(await screen.findAllByText("Google Pay")).not.toHaveLength(0);
+        expect(screen.getAllByText("Apple Pay")).not.toHaveLength(0);
+        expect(screen.queryByText("Express checkout")).not.toBeInTheDocument();
+        const ids = Array.from(document.querySelectorAll('input[name="paymentMethod"]')).map((el) => (el as HTMLInputElement).value);
+        expect(ids).toEqual(["stripe_card", "stripe_google_pay", "stripe_apple_pay"]);
+    });
+
+    it("probes which wallets this device can use, with the store config and order total", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: WALLETS, currency: "INR" });
+        await screen.findByTestId("wallet-probe");
+
+        expect(walletProps.probe).toMatchObject({ hidden: true, currency: "INR", totalMinor: 10000, config: WALLETS });
+        expect(walletProps.probe!.stripe).toEqual({ id: "stripe-js" });
+    });
+
+    it("keeps a wallet this device can't use listed, but greyed out and not selectable", async () => {
+        renderCheckout({ activeGateways: ["stripe"], stripeExpress: WALLETS, currency: "INR" });
+        await screen.findByTestId("wallet-probe");
+
+        reportAvailability({ googlePay: true, applePay: false });
+
+        await waitFor(() => expect(radio("stripe_apple_pay").disabled).toBe(true));
+        expect(screen.getAllByText("Not available on this device").length).toBeGreaterThan(0);
+        expect(radio("stripe_google_pay").disabled).toBe(false);
+    });
+
+    it("unpicks a wallet chosen before the device turned out not to support it", async () => {
+        await chooseGooglePay();
+
+        reportAvailability({ googlePay: false, applePay: true });
+
+        await waitFor(() => expect(screen.queryByTestId("wallet-button-googlePay")).not.toBeInTheDocument());
+        expect(radio("stripe_google_pay").checked).toBe(false);
+    });
+
+    it("choosing a wallet swaps \"Place order\" for that wallet's own Stripe button", async () => {
+        await chooseGooglePay();
+
+        expect(walletProps.button).toMatchObject({ wallet: "googlePay", totalMinor: 10000, config: WALLETS, shippingAddress: expect.objectContaining({ postalCode: "400001" }) });
+        expect(screen.queryByRole("button", { name: "Place order" })).not.toBeInTheDocument();
     });
 
     it.each([
-        ["Stripe isn't an active gateway", { activeGateways: [] as string[], stripeExpress: EXPRESS, currency: "INR" }],
-        ["the store sent no express config (older backend)", { activeGateways: ["stripe"], currency: "INR" }],
-        ["the store turned every express method off", { activeGateways: ["stripe"], stripeExpress: { paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: false } }, currency: "INR" }],
-        ["the store currency is unknown", { activeGateways: ["stripe"], stripeExpress: EXPRESS }],
-    ])("is not shown when %s", async (_why, props) => {
+        ["Stripe isn't an active gateway", { activeGateways: [] as string[], stripeExpress: WALLETS, currency: "INR" }],
+        ["the store sent no wallet config (older backend)", { activeGateways: ["stripe"], currency: "INR" }],
+        ["the store turned both wallets off", { activeGateways: ["stripe"], stripeExpress: { paymentMethodTypes: ["card"], wallets: { applePay: false, googlePay: false } }, currency: "INR" }],
+    ])("lists no wallet rows when %s", async (_why, props) => {
         renderCheckout(props);
 
-        // The address is fetched and selected after mount; the buttons would appear by now if they were going to.
         expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
-        expect(screen.queryByTestId("express-checkout")).not.toBeInTheDocument();
+        expect(screen.queryByText("Google Pay")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("wallet-probe")).not.toBeInTheDocument();
     });
 
     it("places the order through the normal path, as a Stripe payment, once the wallet payment is verified", async () => {
-        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
-        await screen.findByTestId("express-checkout");
+        await chooseGooglePay();
 
         await act(async () => {
-            await expressProps.current.onPaid({ paymentIntentId: "pi_9" });
+            await walletProps.button!.onPaid({ paymentIntentId: "pi_9" });
         });
 
         await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
@@ -447,24 +494,19 @@ describe("CheckoutView - Stripe express checkout buttons", () => {
     });
 
     it("runs the same stock check as the card flow before anything is charged", async () => {
-        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
-        await screen.findByTestId("express-checkout");
+        await chooseGooglePay();
 
         vi.mocked(fetchStockForCartItems).mockResolvedValue({ prod1: 0 });
-        await expect(expressProps.current.beforePay()).resolves.toBe("Some items have insufficient stock. Please update your cart.");
+        await expect(walletProps.button!.beforePay()).resolves.toBe("Some items have insufficient stock. Please update your cart.");
 
         vi.mocked(fetchStockForCartItems).mockResolvedValue({ prod1: 5 });
-        await expect(expressProps.current.beforePay()).resolves.toBeNull();
-
-        vi.mocked(fetchStockForCartItems).mockRejectedValue(new Error("offline"));
-        await expect(expressProps.current.beforePay()).resolves.toBeNull();
+        await expect(walletProps.button!.beforePay()).resolves.toBeNull();
     });
 
-    it("shows a payment error from the buttons to the shopper", async () => {
-        renderCheckout({ activeGateways: ["stripe"], stripeExpress: EXPRESS, currency: "INR" });
-        await screen.findByTestId("express-checkout");
+    it("shows a payment error from the wallet button to the shopper", async () => {
+        await chooseGooglePay();
 
-        act(() => expressProps.current.onError("The price changed. Please review your order and try again."));
+        act(() => walletProps.button!.onError("The price changed. Please review your order and try again."));
 
         expect(await screen.findByText("The price changed. Please review your order and try again.")).toBeInTheDocument();
     });

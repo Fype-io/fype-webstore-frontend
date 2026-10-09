@@ -45,6 +45,14 @@ describe("Spark CollectionList with a collection group", () => {
         expect(screen.queryByRole("link", { name: /Amouage/ })).not.toBeInTheDocument();
     });
 
+    it("points View all at the Collections page filtered to the group, unless a link was set", () => {
+        const { rerender } = render(<CollectionList settings={settings({ goto_label: "View all" })} storeId="s1" initialCollections={[amouage]} />);
+        expect(screen.getByRole("link", { name: /View all/ })).toHaveAttribute("href", "/collections?group=g1");
+
+        rerender(<CollectionList settings={settings({ goto_label: "View all", goto_link: "/pages/brands" })} storeId="s1" initialCollections={[amouage]} />);
+        expect(screen.getByRole("link", { name: /View all/ })).toHaveAttribute("href", "/pages/brands");
+    });
+
     it("renders nothing for real customers when the chosen group has no collections", () => {
         const { container } = render(<CollectionList settings={settings()} storeId="s1" initialCollections={[]} />);
 

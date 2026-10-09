@@ -113,7 +113,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
             <div className="flex items-end justify-between mb-12">
                 {settings.section_heading && <h2 className="font-bold tracking-tight text-3xl md:text-4xl">{settings.section_heading}</h2>}
                 {settings.goto_label && (
-                    <a href={settings.goto_link || "#"} className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors">
+                    <a href={settings.goto_link || (isGroup && settings.collection_group_id ? `/collections?group=${settings.collection_group_id}` : "#")} className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors">
                         {settings.goto_label}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14" />

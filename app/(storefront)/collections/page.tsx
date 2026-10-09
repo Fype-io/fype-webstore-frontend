@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getAllCollections } from "@/lib/storefront-api";
+import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getAllCollections, getCollectionGroup } from "@/lib/storefront-api";
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
@@ -23,20 +23,33 @@ async function getSharedShopData() {
     return { apiBaseUrl, shop, theme, navPages, footerPages };
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+interface CollectionsPageRouteProps {
+    // ?group=<collection group id or slug> narrows the page to that group's collections.
+    searchParams: Promise<{ group?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: CollectionsPageRouteProps): Promise<Metadata> {
+    const { group } = await searchParams;
     const data = await getSharedShopData();
     const storeName = data?.theme?.navbar?.title || data?.theme?.footer?.title || data?.shop?.shopName || "Store";
-    return { title: `Collections - ${storeName}` };
+    const detail = group && data ? await getCollectionGroup(data.apiBaseUrl, data.shop.shopId, group) : null;
+    return { title: `${detail?.group.name ?? "Collections"} - ${storeName}` };
 }
 
 // Only themes that implement CollectionsPage (Spark) can serve this route —
 // same "not retrofitting theme_one" pattern as collections/[slug]/page.tsx.
-export default async function CollectionsPageRoute() {
+export default async function CollectionsPageRoute({ searchParams }: CollectionsPageRouteProps) {
+    const { group: groupParam } = await searchParams;
     const data = await getSharedShopData();
     if (!data || !data.theme) return <ShopNotFound />;
 
     const { apiBaseUrl, shop, theme, navPages, footerPages } = data;
-    const { collections, pagination } = await getAllCollections(apiBaseUrl, shop.shopId, { limit: 100 });
+    // A group filter lists only that group's collections; an unknown or unpublished group is a 404.
+    const detail = groupParam ? await getCollectionGroup(apiBaseUrl, shop.shopId, groupParam) : null;
+    if (groupParam && !detail) notFound();
+    const { collections, pagination } = detail
+        ? { collections: detail.collections, pagination: null }
+        : await getAllCollections(apiBaseUrl, shop.shopId, { limit: 100 });
 
     const themeSlug = resolveThemeSlug(theme.templateId);
     const themeModule = await loadTheme(themeSlug);
@@ -50,6 +63,7 @@ export default async function CollectionsPageRoute() {
             footerPages={footerPages}
             collections={collections}
             pagination={pagination}
+            {...(detail ? { group: { name: detail.group.name, ...(detail.group.description ? { description: detail.group.description } : {}) } } : {})}
             themeConfig={theme.themeConfig}
         />
     );

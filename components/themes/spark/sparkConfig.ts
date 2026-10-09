@@ -276,7 +276,13 @@ export type SparkImageWithTextBlock =
 // doesn't expose a control for it.
 export interface SparkCollectionListSettings {
     section_heading: string;
+    // Where the listed collections come from. Absent on configs saved before
+    // collection groups existed, which means "pick" (the hand-picked list).
+    source?: "pick" | "group";
     collection_ids: string[];
+    // Used when source === "group": that group's collections are listed, in
+    // the group's order, and follow the group as it changes.
+    collection_group_id?: string;
     columns_on_desktop: number;
     goto_label: string;
     goto_link: string;
@@ -1156,7 +1162,9 @@ export const sparkDefaultConfig: SparkConfig = {
                 type: "collection_list",
                 settings: {
                     section_heading: "Shop by Category",
+                    source: "pick",
                     collection_ids: [],
+                    collection_group_id: "",
                     columns_on_desktop: 3,
                     goto_label: "",
                     goto_link: "",

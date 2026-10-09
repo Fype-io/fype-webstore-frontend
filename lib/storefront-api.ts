@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type {
     Category,
+    CollectionGroupDetail,
     CollectionSummary,
     Page,
     PageDetail,
@@ -182,6 +183,20 @@ export async function getCollectionBySlug(apiBaseUrl: string, storeId: string, s
     try {
         const json = await fetchJson<{ data: { collection: CollectionSummary } }>(`${apiBaseUrl}/commerce/${storeId}/products/collections/slug/${slug}`);
         return json.data.collection ?? null;
+    } catch {
+        return null;
+    }
+}
+
+// A published collection group (name, description and its collections in the
+// merchant's order) by id or slug. Null when it doesn't exist, is a draft, or
+// was deleted, so callers can 404 or simply render nothing.
+export async function getCollectionGroup(apiBaseUrl: string, storeId: string, idOrSlug: string): Promise<CollectionGroupDetail | null> {
+    try {
+        const json = await fetchJson<{ data: CollectionGroupDetail }>(
+            `${apiBaseUrl}/commerce/${storeId}/storefront/collection-groups/${encodeURIComponent(idOrSlug)}`
+        );
+        return json.data?.group ? json.data : null;
     } catch {
         return null;
     }

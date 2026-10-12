@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getCollectionTiles, getCollectionGroup } from "@/lib/storefront-api";
+import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getCollectionTiles, getAllCollections, getCollectionGroup } from "@/lib/storefront-api";
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
@@ -51,7 +51,13 @@ export default async function CollectionsPageRoute({ searchParams }: Collections
     const detail = groupParam ? await getCollectionGroup(apiBaseUrl, shop.shopId, groupParam) : null;
     if (groupParam && !detail) notFound();
     const groupTiles: CollectionTile[] | null = detail ? detail.collections.map((c) => ({ ...c, kind: "collection" as const })) : null;
-    const firstChunk = groupTiles ? null : await getCollectionTiles(apiBaseUrl, shop.shopId, { limit: 12 });
+    let firstChunk = groupTiles ? null : await getCollectionTiles(apiBaseUrl, shop.shopId, { limit: 12 });
+    if (firstChunk && firstChunk.tiles.length === 0) {
+        // Nothing came back: a store with no collections, or a backend that does not have the tiles
+        // endpoint yet (storefront deployed first). The plain collections list covers both.
+        const plain = await getAllCollections(apiBaseUrl, shop.shopId, { limit: 100 });
+        firstChunk = { tiles: plain.collections.map((c) => ({ ...c, kind: "collection" as const })), hasNextPage: false };
+    }
     const collections = groupTiles ?? firstChunk?.tiles ?? [];
 
     const themeSlug = resolveThemeSlug(theme.templateId);

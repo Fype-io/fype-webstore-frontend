@@ -1,0 +1,102 @@
+# Checks every PR; deploys develop → staging and main → production.
+# Deploys run only after the checks pass on the same commit. See README "CI/CD".
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# A newer push to a PR cancels its older run; pushes to develop/main queue instead,
+# so a deploy is never cancelled halfway.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  STAGING_API_BASE_URL: https://test-api.fypestore.com/api/v1
+  PRODUCTION_API_BASE_URL: https://api.fypestore.com/api/v1
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # cloudflare-env.d.ts is gitignored; tsc needs it for the CloudflareEnv bindings.
+      - run: npm run cf-typegen
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      # Pushes to develop/main build in their deploy job, so only PRs build here.
+      - name: Build
+        if: github.event_name == 'pull_request'
+        run: npx opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+
+  deploy-staging:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://test-shops.fypestore.com
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # NEXT_PUBLIC_* is inlined into the client bundle at build time; wrangler vars don't reach it.
+      - run: npm run deploy:staging
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Smoke check
+        run: .github/scripts/smoke-check.sh "$SMOKE_URL"
+        env:
+          SMOKE_URL: ${{ vars.STAGING_SMOKE_URL || 'https://test-shops.fypestore.com/' }}
+
+  deploy-production:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://shops.fypestore.com
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run deploy
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Smoke check
+        run: .github/scripts/smoke-check.sh "$SMOKE_URL"
+        env:
+          SMOKE_URL: ${{ vars.PRODUCTION_SMOKE_URL || 'https://shops.fypestore.com/' }}

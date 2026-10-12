@@ -1,7 +1,9 @@
 import type { HomePageProps } from "@/components/themes/registry";
 import SparkHome from "./SparkHome";
-import { buildSparkNavItems, mergeSparkConfig, sparkDefaultConfig } from "./sparkConfig";
-import { getApiBaseUrl, getCollectionById, getCollectionGroup, getCollectionProducts, getProductDetails, getCollectionsByIds } from "@/lib/storefront-api";
+import { COLLECTION_LIST_DEFAULTS, buildSparkNavItems, mergeSparkConfig, sparkDefaultConfig } from "./sparkConfig";
+import { clampTileCount } from "./tileLayout";
+import type { StorefrontProduct } from "@/types/storefront";
+import { getApiBaseUrl, getCollectionById, getCollectionGroup, getCollectionProductsWithTotal, getProductDetails, getCollectionsByIds } from "@/lib/storefront-api";
 
 // Spark's self-contained Home page — reads the store's real saved
 // `themeConfig` (Theme.themeConfig, a Mixed field since Spark's shape
@@ -49,7 +51,8 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
             (s.settings.source === "group" ? Boolean(s.settings.collection_group_id) : s.settings.collection_ids.length > 0)
     );
 
-    const initialFeaturedCollectionProducts: Record<string, Awaited<ReturnType<typeof getCollectionProducts>>> = {};
+    const initialFeaturedCollectionProducts: Record<string, StorefrontProduct[]> = {};
+    const initialFeaturedCollectionTotals: Record<string, number> = {};
     const initialFeaturedCollections: Record<string, Awaited<ReturnType<typeof getCollectionById>>> = {};
     const initialFeaturedProducts: Record<string, Awaited<ReturnType<typeof getProductDetails>>["product"]> = {};
     const initialCollectionListCollections: Record<string, Awaited<ReturnType<typeof getCollectionsByIds>>> = {};
@@ -60,12 +63,14 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
         await Promise.all([
             ...featuredCollectionInstances.map(async (instance) => {
                 if (instance.type !== "featured_collection") return;
-                initialFeaturedCollectionProducts[instance.id] = await getCollectionProducts(
+                const featured = await getCollectionProductsWithTotal(
                     apiBaseUrl,
                     shop.shopId,
                     instance.settings.collection_id,
                     instance.settings.products_to_show
                 );
+                initialFeaturedCollectionProducts[instance.id] = featured.products;
+                initialFeaturedCollectionTotals[instance.id] = featured.total;
                 initialFeaturedCollections[instance.id] = await getCollectionById(apiBaseUrl, shop.shopId, instance.settings.collection_id);
             }),
             ...featuredProductInstances.map(async (instance) => {
@@ -78,7 +83,15 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
                 initialCollectionListCollections[instance.id] =
                     instance.settings.source === "group"
                         ? ((await getCollectionGroup(apiBaseUrl, shop.shopId, instance.settings.collection_group_id ?? ""))?.collections ?? [])
-                        : await getCollectionsByIds(apiBaseUrl, shop.shopId, instance.settings.collection_ids);
+                        : await getCollectionsByIds(
+                              apiBaseUrl,
+                              shop.shopId,
+                              // Only the tiles the section will draw are fetched.
+                              instance.settings.collection_ids.slice(
+                                  0,
+                                  clampTileCount(instance.settings.collections_to_show, 2, 12, COLLECTION_LIST_DEFAULTS.collections_to_show)
+                              )
+                          );
             }),
         ]);
     }
@@ -89,6 +102,7 @@ export default async function HomePage({ shop, navPages, themeConfig }: HomePage
             navItems={navItems}
             shop={shop}
             initialFeaturedCollectionProducts={initialFeaturedCollectionProducts}
+            initialFeaturedCollectionTotals={initialFeaturedCollectionTotals}
             initialFeaturedCollections={initialFeaturedCollections}
             initialFeaturedProducts={initialFeaturedProducts}
             initialCollectionListCollections={initialCollectionListCollections}

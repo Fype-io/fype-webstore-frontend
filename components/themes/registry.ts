@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type {
     Category,
     CollectionSummary,
+    CollectionTile,
     Page,
     PaginationMeta,
     ProductDetail,
@@ -89,8 +90,10 @@ export interface CollectionsPageProps {
     shop: ShopIdentity;
     navPages: Page[];
     footerPages: Page[];
-    collections: CollectionSummary[];
-    pagination?: PaginationMeta | null;
+    // The first chunk of tiles (groups and standalone collections); `hasMore` says the API holds more,
+    // which the page loads as the visitor scrolls.
+    collections: CollectionTile[];
+    hasMore?: boolean;
     // Set when the page is filtered to one collection group (/collections?group=...):
     // only that group's collections are listed, under the group's own title.
     group?: { name: string; description?: string };

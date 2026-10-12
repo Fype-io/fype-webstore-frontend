@@ -88,3 +88,13 @@
     background-color: #ffffff;
     color: var(--spark-button-hover-text);
 }
+
+/* Collection tile names (Collection List, Collections page): the hover colour is a
+   theme-editor setting passed in as --spark-name-hover on the tile's link. */
+.spark-tile-name {
+    transition: color 150ms ease;
+}
+
+.group:hover .spark-tile-name {
+    color: var(--spark-name-hover);
+}

@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart, addToGuestCart, fetchCart, fetchGuestCart } from "@/redux/slices/userSlice";
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { SparkFeaturedCollectionSettings } from "../sparkConfig";
+import { featuredCollectionGrid } from "../tileLayout";
 import type { CollectionSummary, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
@@ -21,6 +22,9 @@ interface FeaturedCollectionProps {
     // collection/count live in the editor, since draft edits never
     // round-trip through the server.
     initialProducts?: StorefrontProduct[];
+    // How many products a shopper could see in the collection in all (the first
+    // `products_to_show` are in initialProducts); drives the "View all" button.
+    initialTotal?: number;
     initialCollection?: CollectionSummary | null;
     // Gates the placeholder fallback below — real customers must never see
     // dummy content, only a merchant actively customizing the theme.
@@ -181,10 +185,12 @@ export default function FeaturedCollection({
     storeId,
     globalTax,
     initialProducts = [],
+    initialTotal,
     initialCollection = null,
     isEditorPreview = false,
 }: FeaturedCollectionProps) {
     const [products, setProducts] = useState<StorefrontProduct[]>(initialProducts);
+    const [total, setTotal] = useState<number>(initialTotal ?? initialProducts.length);
     const [collection, setCollection] = useState<CollectionSummary | null>(initialCollection);
     const ssrKey = useRef(`${settings.collection_id}:${settings.products_to_show}`).current;
 
@@ -194,12 +200,13 @@ export default function FeaturedCollection({
         if (!settings.collection_id) {
             // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor cleared the collection
             setProducts([]);
+            setTotal(0);
             setCollection(null);
             return;
         }
         let cancelled = false;
         Promise.all([
-            getApi<{ data: { products: StorefrontProduct[] } }>(
+            getApi<{ data: { products: StorefrontProduct[]; total?: number } }>(
                 `/commerce/${storeId}/products/collections/${settings.collection_id}/storefront-products?limit=${settings.products_to_show}`
             ),
             getApi<{ data: { collection: CollectionSummary } }>(
@@ -208,13 +215,16 @@ export default function FeaturedCollection({
         ])
             .then(([productsResponse, collectionResponse]) => {
                 if (!cancelled) {
-                    setProducts(productsResponse.data?.data?.products ?? []);
+                    const live = productsResponse.data?.data?.products ?? [];
+                    setProducts(live);
+                    setTotal(productsResponse.data?.data?.total ?? live.length);
                     setCollection(collectionResponse.data?.data?.collection ?? null);
                 }
             })
             .catch(() => {
                 if (!cancelled) {
                     setProducts([]);
+                    setTotal(0);
                     setCollection(null);
                 }
             });
@@ -234,6 +244,8 @@ export default function FeaturedCollection({
     const isPlaceholder = products.length === 0 && displayProducts.length > 0;
     const defaultCollectionLink = collection?.slug ? `/collections/${collection.slug}` : "#";
     const gotoLink = !settings.goto_link || settings.goto_link === "/products" ? defaultCollectionLink : settings.goto_link;
+    // More products in the collection than the section shows: a "View all" button below the grid leads to the rest.
+    const hasMore = products.length > 0 && total > products.length;
 
     if (displayProducts.length === 0) return null;
 
@@ -254,7 +266,7 @@ export default function FeaturedCollection({
                 )}
                 <div className="flex items-end justify-between mb-12">
                     <h2 className="font-bold tracking-tight text-3xl md:text-4xl">{settings.section_heading}</h2>
-                    {settings.goto_label && (
+                    {settings.goto_label && !hasMore && (
                         <a
                             href={gotoLink}
                             className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors"
@@ -267,7 +279,7 @@ export default function FeaturedCollection({
                         </a>
                     )}
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-8 md:gap-y-12">
+                <div className={`grid ${featuredCollectionGrid(settings.products_per_row)} gap-x-6 gap-y-8 md:gap-y-12`}>
                     {displayProducts.map((product) => (
                         <FeaturedProductCard
                             key={product.productId}
@@ -278,6 +290,20 @@ export default function FeaturedCollection({
                         />
                     ))}
                 </div>
+                {hasMore && (
+                    <div className="mt-12 flex justify-center">
+                        <a
+                            href={gotoLink}
+                            className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-gray-900 font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                        >
+                            {settings.goto_label || "View all"}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="m12 5 7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+                )}
             </div>
         </section>
     );

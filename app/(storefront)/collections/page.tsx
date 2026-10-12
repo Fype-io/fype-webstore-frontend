@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getAllCollections, getCollectionGroup } from "@/lib/storefront-api";
+import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation, getCollectionTiles, getCollectionGroup } from "@/lib/storefront-api";
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import type { CollectionTile } from "@/types/storefront";
 
 async function getSharedShopData() {
     const headersList = await headers();
@@ -44,12 +45,14 @@ export default async function CollectionsPageRoute({ searchParams }: Collections
     if (!data || !data.theme) return <ShopNotFound />;
 
     const { apiBaseUrl, shop, theme, navPages, footerPages } = data;
-    // A group filter lists only that group's collections; an unknown or unpublished group is a 404.
+    // A group filter lists only that group's collections (all of them; the page reveals them a chunk
+    // at a time); an unknown or unpublished group is a 404. Otherwise: groups and standalone
+    // collections, the first chunk here and the rest loaded as the visitor scrolls.
     const detail = groupParam ? await getCollectionGroup(apiBaseUrl, shop.shopId, groupParam) : null;
     if (groupParam && !detail) notFound();
-    const { collections, pagination } = detail
-        ? { collections: detail.collections, pagination: null }
-        : await getAllCollections(apiBaseUrl, shop.shopId, { limit: 100 });
+    const groupTiles: CollectionTile[] | null = detail ? detail.collections.map((c) => ({ ...c, kind: "collection" as const })) : null;
+    const firstChunk = groupTiles ? null : await getCollectionTiles(apiBaseUrl, shop.shopId, { limit: 12 });
+    const collections = groupTiles ?? firstChunk?.tiles ?? [];
 
     const themeSlug = resolveThemeSlug(theme.templateId);
     const themeModule = await loadTheme(themeSlug);
@@ -62,7 +65,7 @@ export default async function CollectionsPageRoute({ searchParams }: Collections
             navPages={navPages}
             footerPages={footerPages}
             collections={collections}
-            pagination={pagination}
+            hasMore={firstChunk?.hasNextPage ?? false}
             {...(detail ? { group: { name: detail.group.name, ...(detail.group.description ? { description: detail.group.description } : {}) } } : {})}
             themeConfig={theme.themeConfig}
         />

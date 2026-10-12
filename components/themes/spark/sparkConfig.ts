@@ -147,6 +147,8 @@ export interface SparkFeaturedCollectionSettings {
     section_heading: string;
     collection_id: string;
     products_to_show: number;
+    // Absent on sections saved before this existed: 4 per row, as before.
+    products_per_row?: number;
     goto_label: string;
     goto_link: string;
     background_color: string;
@@ -283,6 +285,12 @@ export interface SparkCollectionListSettings {
     // Used when source === "group": that group's collections are listed, in
     // the group's order, and follow the group as it changes.
     collection_group_id?: string;
+    // How many tiles to draw before "View all" takes over, and how the tiles
+    // look. All absent on sections saved before they existed; see
+    // COLLECTION_LIST_DEFAULTS for what absent means.
+    collections_to_show?: number;
+    show_collection_name?: boolean;
+    name_hover_color?: string;
     columns_on_desktop: number;
     goto_label: string;
     goto_link: string;
@@ -290,6 +298,21 @@ export interface SparkCollectionListSettings {
     padding_top: number;
     padding_bottom: number;
 }
+
+// What an absent setting means for sections saved before the setting existed,
+// so old sections keep their look (except Collections to Show, which defaults
+// to 6 on purpose: a long list needs a cap and a "View all"). The admin editor
+// (sparkThemeSchema.ts) applies the same defaults; keep the two in step.
+export const COLLECTION_LIST_DEFAULTS = {
+    collections_to_show: 6,
+    columns_on_desktop: 3,
+    show_collection_name: true,
+    name_hover_color: "#2563eb",
+} as const;
+
+export const FEATURED_COLLECTION_DEFAULTS = { products_per_row: 4 } as const;
+
+export const COLLECTIONS_PAGE_NAME_HOVER_DEFAULT = "#6b7280";
 
 // Slide is a single homogeneous block type capped at 8 (matches the
 // reference's THEME_SCHEMA "limit": 8) — same shape as Banner Slide, just a
@@ -528,8 +551,10 @@ export interface SparkCollectionsPageSettings {
     // Only 2 breakpoint tiers exist in CollectionsPage.tsx today
     // (grid-cols-1 md:grid-cols-3, no lg: tier) — matches the reference's
     // own 2-option field exactly, not a 3-tier scale like Shop's.
-    collections_per_row: "2" | "3";
+    collections_per_row: "2" | "3" | "4" | "5" | "6";
     show_collection_name: boolean;
+    // Absent on configs saved before it existed: grey, as before.
+    name_hover_color?: string;
 }
 
 // Per-collection custom hero banner override, matched by `collection_id`
@@ -1020,6 +1045,7 @@ export const sparkDefaultConfig: SparkConfig = {
                     section_heading: "New Arrivals",
                     collection_id: "",
                     products_to_show: 4,
+                    products_per_row: 4,
                     goto_label: "View all",
                     goto_link: "/products",
                     background_color: "#ffffff",
@@ -1165,6 +1191,9 @@ export const sparkDefaultConfig: SparkConfig = {
                     source: "pick",
                     collection_ids: [],
                     collection_group_id: "",
+                    collections_to_show: 6,
+                    show_collection_name: true,
+                    name_hover_color: "#2563eb",
                     columns_on_desktop: 3,
                     goto_label: "",
                     goto_link: "",
@@ -1363,6 +1392,7 @@ export const sparkDefaultConfig: SparkConfig = {
             subtitle: "Explore our specialized ranges, thoughtfully designed around core materials and silhouettes.",
             collections_per_row: "3",
             show_collection_name: true,
+            name_hover_color: "#6b7280",
         },
         collection_page: {
             default_banner_images: [],

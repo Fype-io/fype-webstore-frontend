@@ -9,7 +9,7 @@ import { buildSparkNavItems, mergeSparkConfig, sparkDefaultConfig } from "./spar
 // and delegates all rendering + live-editing to SparkCollections, a Client
 // Component, same split HomePage.tsx/SparkHome.tsx (and now
 // ProductsPage.tsx/SparkShop.tsx) already use.
-export default function CollectionsPage({ shop, navPages, collections, group, themeConfig }: CollectionsPageProps) {
+export default function CollectionsPage({ shop, navPages, collections, hasMore, group, themeConfig }: CollectionsPageProps) {
     const config = mergeSparkConfig(sparkDefaultConfig, themeConfig);
     const navItems = buildSparkNavItems(navPages);
 
@@ -19,6 +19,7 @@ export default function CollectionsPage({ shop, navPages, collections, group, th
             shop={shop}
             navItems={navItems}
             collections={collections}
+            {...(hasMore !== undefined ? { hasMore } : {})}
             {...(group ? { heading: group.name, subheading: group.description ?? "" } : {})}
         />
     );

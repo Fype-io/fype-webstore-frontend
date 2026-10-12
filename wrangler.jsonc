@@ -106,15 +106,13 @@
 					"zone_name": "fypestore.com"
 				}
 			],
-			// Staging's own tenant cache, so staging never reads or writes production's
-			// tenant:<domain> entries. Create it with:
-			//   npx wrangler kv namespace create FYPE_TENANT_CACHE_STAGING
-			// and replace the placeholder below with the id it prints. Staging deploys
-			// fail until this is done.
+			// Staging's own tenant cache (KV namespace "FYPE_TENANT_CACHE_STAGING", created
+			// 2026-10-12), so staging never reads or writes production's tenant:<domain>
+			// entries. Same binding name as production: the code reads env.FYPE_TENANT_CACHE.
 			"kv_namespaces": [
 				{
 					"binding": "FYPE_TENANT_CACHE",
-					"id": "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
+					"id": "ce0145c93daa45a6912208646d4e2d3d"
 				}
 			],
 			"services": [

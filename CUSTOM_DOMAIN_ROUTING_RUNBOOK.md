@@ -112,8 +112,7 @@ Then, in **Workers Routes**:
 2. Confirm every route and exclusion from "Record the current state" and step a is still there
    and unchanged. Re-add any that are missing.
 
-Don't run `npm run deploy:staging`: staging's KV id is a placeholder until you create its
-namespace (see "Staging KV" below).
+Staging is deployed separately with `npm run deploy:staging` (see "Staging KV" below).
 
 ## c) Purge the production KV entry for zalloperfumes
 
@@ -197,12 +196,14 @@ Anything else that differs from the "before" output is a problem: roll back.
 
 ## Staging KV (separate from the steps above)
 
-Staging used production's tenant cache (`55ab9eae…`). It now has a placeholder:
+Staging used production's tenant cache (`55ab9eae…`). It now has its own namespace,
+`FYPE_TENANT_CACHE_STAGING` (`ce0145c9…`, created 2026-10-12), in
+`env.staging.kv_namespaces[0].id` in `wrangler.jsonc`, under the same binding name as
+production (`FYPE_TENANT_CACHE`, which `lib/tenant.ts` reads).
 
-```bash
-npx wrangler kv namespace create FYPE_TENANT_CACHE_STAGING
-```
+From 2026-09-30 until then the id was a placeholder, so every `npm run deploy:staging` failed:
+the last staging deploy before the fix was 2026-09-26.
 
-Put the printed id in `env.staging.kv_namespaces[0].id` in `wrangler.jsonc` (replacing
-`REPLACE_WITH_STAGING_KV_NAMESPACE_ID`), commit it, then `npm run deploy:staging`. Staging deploys
-fail until you do this.
+When creating a namespace, answer **no** to Wrangler's "add it on your behalf?" prompt: it
+adds the namespace to the top-level (production) `kv_namespaces` under a new binding name,
+not to `env.staging`.

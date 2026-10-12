@@ -82,7 +82,13 @@
 			// fully redeclared here — see https://developers.cloudflare.com/workers/wrangler/environments/
 			"vars": {
 				"API_BASE_URL": "https://test-api.fypestore.com/api/v1",
-				"NEXT_PUBLIC_API_BASE_URL": "https://test-api.fypestore.com/api/v1"
+				"NEXT_PUBLIC_API_BASE_URL": "https://test-api.fypestore.com/api/v1",
+				// The staging admin app (ecommerce_app), allowed to frame the theme
+				// customizer's preview (lib/editor-admin-origins.ts). Unset means
+				// frame-ancestors 'none': the editor iframe shows "refused to connect".
+				// Comma-separated if more than one. Kept here, not in the dashboard:
+				// a deploy replaces the Worker's vars with these.
+				"EDITOR_ADMIN_ORIGINS": "https://test-ecommerce.fype.io"
 			},
 			// Wires test-shops.fypestore.com (staging fallback-origin hostname; kept
 			// one label deep so it's covered by the free Universal SSL wildcard cert,

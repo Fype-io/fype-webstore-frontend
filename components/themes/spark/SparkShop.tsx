@@ -241,7 +241,6 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
                         blocks={footer.blocks.filter((b) => !b.hidden)}
                         navItems={navItems}
                         socialMedia={socialMedia}
-                        shopName={shop.shopName}
                         footerLogoUrl={logoSettings.footer_logo_url}
                         footerLogoWidth={logoSettings.footer_logo_width}
                         isEditorPreview={isEditorPreview}

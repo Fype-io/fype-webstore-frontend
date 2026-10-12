@@ -13,7 +13,6 @@ const renderFooter = (shopName?: string, footerLogoUrl = "") =>
             socialMedia={{} as SparkThemeSettingsSocialMedia}
             footerLogoUrl={footerLogoUrl}
             footerLogoWidth={100}
-            shopName={shopName}
         />
     );
 

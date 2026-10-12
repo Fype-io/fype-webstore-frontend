@@ -73,6 +73,7 @@ export function PhoneInput({
         if (selectedCountry && selectedCountry !== countryIso) {
             const found = ALL_COUNTRIES.find((c) => c.iso === selectedCountry);
             if (found) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- follow the parent's selectedCountry prop
                 setCountryIso(found.iso as CountryCode);
                 setCountryCode(found.code);
                 setCountryFlag(found.flag);
@@ -133,6 +134,7 @@ export function PhoneInput({
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- revalidate the number when the country changes
         validatePhone(phoneNumber, countryIso, countryCode);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [countryIso, countryCode]);

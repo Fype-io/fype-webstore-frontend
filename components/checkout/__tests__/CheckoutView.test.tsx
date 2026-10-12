@@ -8,7 +8,8 @@ import CheckoutView from "../CheckoutView";
 import type StripeExpressCheckout from "../StripeExpressCheckout";
 import { ORDER_NOW_NOTE } from "../checkoutUtils";
 import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
-import { useStripeAdapter } from "@/hooks/useStripeAdapter";
+import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeAdapter";
+import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
 import { fetchStockForCartItems } from "@/lib/stock-api";
 import { calculateShippingRate } from "@/lib/shipping-api";
 import { postApi } from "@/lib/client-api";
@@ -89,8 +90,8 @@ vi.mock("../StripeExpressCheckout", async () => {
     };
 });
 
-const notReadyRazorpay = { key: "razorpay", isReady: false, isLoading: false, availableMethods: [], open: vi.fn() };
-const readyRazorpay = {
+const notReadyRazorpay: CheckoutGatewayAdapter = { key: "razorpay", isReady: false, isLoading: false, availableMethods: [], open: vi.fn() };
+const readyRazorpay: CheckoutGatewayAdapter = {
     key: "razorpay",
     isReady: true,
     isLoading: false,
@@ -100,14 +101,17 @@ const readyRazorpay = {
     ],
     open: vi.fn().mockResolvedValue({ gatewayRef: { razorpay_order_id: "o1", razorpay_payment_id: "p1", razorpay_signature: "s1" } }),
 };
-const notReadyStripe = { key: "stripe", isReady: false, isLoading: false, availableMethods: [], open: vi.fn() };
-const readyStripe = {
+const notReadyStripe: StripeCheckoutAdapter = { key: "stripe", isReady: false, isLoading: false, availableMethods: [], open: vi.fn(), stripe: null };
+const readyStripe: StripeCheckoutAdapter = {
     key: "stripe",
     isReady: true,
     isLoading: false,
     availableMethods: [{ id: "stripe_card", gatewayKey: "stripe", title: "Card (international)", subtitle: "Visa, Mastercard, Amex via Stripe" }],
     open: vi.fn().mockResolvedValue({ gatewayRef: { paymentIntentId: "pi_1" } }),
+    stripe: null,
 };
+
+type UserState = ReturnType<typeof userReducer>;
 
 function buildStore() {
     return configureStore({
@@ -149,10 +153,11 @@ function buildStore() {
                     total: 100,
                     itemCount: 1,
                 },
-                // Remaining UserState fields default sensibly for this test -
-                // cast via `as any` for whatever this slice's full state shape
-                // requires beyond what CheckoutView actually reads.
-            } as any,
+                // Remaining UserState fields are left out - this test only
+                // provides what CheckoutView actually reads - and `user` uses an
+                // older shape (`id`, no verification flags), hence the cast
+                // through `unknown` to the slice's real state type.
+            } as unknown as UserState,
         },
     });
 }
@@ -178,8 +183,8 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(fetchStockForCartItems).mockResolvedValue({});
-        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay as any);
-        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe as any);
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe);
     });
 
     it("neither gateway active, no logistics app: \"Order now\" only, no COD", async () => {
@@ -192,7 +197,7 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     });
 
     it("only Razorpay active: shows Razorpay's methods, not Stripe's, no COD", async () => {
-        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay as any);
+        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay);
 
         renderCheckout({ activeGateways: ["razorpay"] });
 
@@ -203,7 +208,7 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     });
 
     it("only Stripe active: shows Stripe's method, not Razorpay's, no COD", async () => {
-        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe as any);
+        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe);
 
         renderCheckout({ activeGateways: ["stripe"] });
 
@@ -213,8 +218,8 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     });
 
     it("both active: methods from both adapters are merged into one list, no id collision", async () => {
-        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay as any);
-        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe as any);
+        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe);
 
         renderCheckout({ activeGateways: ["razorpay", "stripe"] });
 
@@ -225,8 +230,8 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     });
 
     it("dispatches to the Razorpay adapter when a Razorpay method is selected", async () => {
-        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay as any);
-        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe as any);
+        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe);
         const user = userEvent.setup();
 
         renderCheckout({ activeGateways: ["razorpay", "stripe"] });
@@ -246,8 +251,8 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
     });
 
     it("dispatches to the Stripe adapter when a Stripe method is selected", async () => {
-        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay as any);
-        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe as any);
+        vi.mocked(useRazorpayAdapter).mockReturnValue(readyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(readyStripe);
         const user = userEvent.setup();
 
         renderCheckout({ activeGateways: ["razorpay", "stripe"] });

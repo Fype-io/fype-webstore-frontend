@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useStripeAdapter } from "../useStripeAdapter";
 import { createGatewayOrder, verifyGatewayPayment } from "@/lib/payment-api";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
 vi.mock("@/lib/payment-api", () => ({
     createGatewayOrder: vi.fn(),
@@ -18,13 +18,16 @@ vi.mock("@stripe/stripe-js", () => ({
 // the adapter's contract (readiness gating, order-creation call, verification
 // call, gatewayRef shape), not Stripe.js's real UI.
 
-function mockStripeInstance(overrides: Partial<{ confirmPayment: any; create: any }> = {}) {
-    return {
+// Only the slice of the Stripe instance the adapter touches is mocked, so it's
+// cast to the real Stripe type once here rather than at every call site.
+function mockStripeInstance(overrides: Partial<{ confirmPayment: Mock; create: Mock }> = {}): Stripe {
+    const instance = {
         elements: vi.fn().mockReturnValue({
             create: overrides.create ?? vi.fn().mockReturnValue({ mount: vi.fn() }),
         }),
         confirmPayment: overrides.confirmPayment ?? vi.fn().mockResolvedValue({ paymentIntent: { id: "pi_mock1" } }),
     };
+    return instance as unknown as Stripe;
 }
 
 const SHIPPING = { fullName: "Test User", addressLine1: "1 Test Street", city: "Kochi", state: "Kerala", postalCode: "682001", country: "India" };
@@ -46,7 +49,7 @@ describe("useStripeAdapter", () => {
     });
 
     it("loads Stripe.js lazily once given a publishableKey, and reports its own method list", async () => {
-        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance() as any);
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance());
 
         const { result } = renderHook(() => useStripeAdapter({ storeId: "store-1", publishableKey: "pk_test_abc" }));
 
@@ -67,7 +70,7 @@ describe("useStripeAdapter", () => {
     });
 
     it("open() creates the order and resolves with a paymentIntentId once verified", async () => {
-        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance() as any);
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance());
         vi.mocked(createGatewayOrder).mockResolvedValue({
             orderId: "pi_mock1",
             amount: 10000,
@@ -105,7 +108,7 @@ describe("useStripeAdapter", () => {
         [{ applePay: false, googlePay: false }, { applePay: "never", googlePay: "never" }],
     ])("passes the store's wallet flags %j to the Payment Element", async (wallets, expected) => {
         const create = vi.fn().mockReturnValue({ mount: vi.fn() });
-        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }) as any);
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }));
         vi.mocked(createGatewayOrder).mockResolvedValue({
             orderId: "pi_w", amount: 10000, currency: "inr", clientSecret: "pi_w_secret", wallets,
         });
@@ -124,7 +127,7 @@ describe("useStripeAdapter", () => {
 
     it("leaves Stripe's own wallet defaults when the backend sends no wallet flags", async () => {
         const create = vi.fn().mockReturnValue({ mount: vi.fn() });
-        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }) as any);
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance({ create }));
         vi.mocked(createGatewayOrder).mockResolvedValue({ orderId: "pi_o", amount: 10000, currency: "inr", clientSecret: "pi_o_secret" });
         vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: true });
 
@@ -140,7 +143,7 @@ describe("useStripeAdapter", () => {
     });
 
     it("open() rejects when the customer cancels", async () => {
-        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance() as any);
+        vi.mocked(loadStripe).mockResolvedValue(mockStripeInstance());
         vi.mocked(createGatewayOrder).mockResolvedValue({
             orderId: "pi_mock2",
             amount: 10000,
@@ -165,7 +168,7 @@ describe("useStripeAdapter", () => {
 
     it("open() rejects when Stripe's own confirmPayment returns an error", async () => {
         vi.mocked(loadStripe).mockResolvedValue(
-            mockStripeInstance({ confirmPayment: vi.fn().mockResolvedValue({ error: { message: "Your card was declined." } }) }) as any
+            mockStripeInstance({ confirmPayment: vi.fn().mockResolvedValue({ error: { message: "Your card was declined." } }) })
         );
         vi.mocked(createGatewayOrder).mockResolvedValue({
             orderId: "pi_mock3",

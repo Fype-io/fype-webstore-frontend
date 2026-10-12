@@ -270,6 +270,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     const showDescBlock = settings.show_description && hasDescription;
     const showBelowTitle = settings.description_position === "Below Product Title" && (showDescBlock || showHighlights);
     const showBelowCart = settings.description_position !== "Below Product Title" && (showDescBlock || showHighlights);
+    // eslint-disable-next-line react-hooks/purity -- a day-granular "New" badge; an off-by-a-render clock is fine
     const isNew = !!product.createdAt && Date.now() - new Date(product.createdAt).getTime() < NEW_WINDOW_MS;
     const showWishlist = settings.show_wishlist !== false;
 

@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     }
 
     const storeTheme = await getTheme(apiBaseUrl, shop.shopId);
-    const themeConfig = storeTheme?.themeConfig as any;
+    const themeConfig = storeTheme?.themeConfig as { theme_settings?: { logo?: { favicon_url?: string } } } | undefined;
     const faviconUrl = themeConfig?.theme_settings?.logo?.favicon_url;
 
     return {

@@ -236,6 +236,7 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
             {!footer.hidden && (
                 <div className="spark-layout-section" id="spark-section-footer" onClick={isEditorPreview ? selectFooter : undefined}>
                     <Footer
+                        storeName={shop.shopName}
                         settings={footer.settings}
                         blocks={footer.blocks.filter((b) => !b.hidden)}
                         navItems={navItems}

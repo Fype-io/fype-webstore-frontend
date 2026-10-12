@@ -10,8 +10,8 @@ interface FooterProps {
     socialMedia: SparkThemeSettingsSocialMedia;
     footerLogoUrl: string;
     footerLogoWidth: number;
-    // Store name for the copyright line; falls back to the theme name.
-    shopName?: string;
+    /** The store's name, shown as the brand (when there's no footer logo) and in the copyright line. */
+    storeName?: string;
     isEditorPreview?: boolean;
     activeBlockId?: string | null;
     onBlockClick?: (kind: "text" | "menu", id: string) => void;
@@ -77,7 +77,7 @@ export default function Footer({
     socialMedia,
     footerLogoUrl,
     footerLogoWidth,
-    shopName,
+    storeName,
     isEditorPreview = false,
     activeBlockId = null,
     onBlockClick,
@@ -118,6 +118,8 @@ export default function Footer({
     };
 
     const paymentIcons = settings.payment_icons ?? [];
+    // The store's own name; "Spark" only when there's none (e.g. the theme preset preview).
+    const brandName = storeName?.trim().replace(/\.+$/, "") || "Spark";
 
     return (
         <footer className="relative py-20 px-6" style={{ backgroundColor: settings.background_color, color: settings.text_color }}>
@@ -141,7 +143,7 @@ export default function Footer({
                                         "",
                                         <>
                                             {!footerLogoUrl && (
-                                                <div className="text-2xl font-black tracking-tighter mb-6">{shopName?.trim() || "Spark."}</div>
+                                                <div className="text-2xl font-black tracking-tighter mb-6">{brandName}.</div>
                                             )}
                                             <div className="max-w-sm mb-8 text-base leading-relaxed opacity-80" dangerouslySetInnerHTML={{ __html: block.settings.text }} />
                                             {socialLinks.length > 0 && (
@@ -198,7 +200,7 @@ export default function Footer({
                 <hr className="border-t border-current opacity-20 mb-8" />
                 <div className="flex items-center justify-between gap-6 text-sm opacity-80 flex-col md:flex-row">
                     <p>
-                        Copyright © {new Date().getFullYear()} {shopName?.trim() || "Spark"}.{" "}
+                        Copyright © {new Date().getFullYear()} {brandName}.{" "}
                         <a href="https://www.fype.io" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
                             Powered by Fype
                         </a>

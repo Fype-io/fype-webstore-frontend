@@ -114,6 +114,7 @@ export default function CheckoutView({
     const notServiceable = (hasDeliveryApp || hasManualShipping) && !shipmentState.serviceable;
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- re-sync the selection when the available methods change
         if (codOnly) setSelectedPaymentMethod("cod");
         else if (!showCod) setSelectedPaymentMethod((m) => (m === "cod" ? null : m));
     }, [codOnly, showCod]);

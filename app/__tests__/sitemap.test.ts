@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import sitemap from "../sitemap";
 import { getShopByDomain, getAllProducts, getAllCollections, getAllPages } from "@/lib/storefront-api";
 
@@ -17,7 +17,7 @@ vi.mock("@/lib/storefront-api", () => ({
 import { headers } from "next/headers";
 
 function mockHost(host: string) {
-    (headers as any).mockResolvedValue({ get: (key: string) => (key === "host" ? host : null) });
+    (headers as Mock).mockResolvedValue({ get: (key: string) => (key === "host" ? host : null) });
 }
 
 describe("sitemap.ts", () => {
@@ -27,7 +27,7 @@ describe("sitemap.ts", () => {
 
     it("falls back to just the homepage when the shop can't be resolved", async () => {
         mockHost("unknown.example.com");
-        (getShopByDomain as any).mockResolvedValue(null);
+        (getShopByDomain as Mock).mockResolvedValue(null);
 
         const result = await sitemap();
 
@@ -37,16 +37,16 @@ describe("sitemap.ts", () => {
 
     it("includes the homepage, products, active collections, and visible pages", async () => {
         mockHost("mystore.example.com");
-        (getShopByDomain as any).mockResolvedValue({ shopId: "shop-1" });
-        (getAllProducts as any).mockResolvedValue({
+        (getShopByDomain as Mock).mockResolvedValue({ shopId: "shop-1" });
+        (getAllProducts as Mock).mockResolvedValue({
             products: [{ productId: "p1", slug: "cool-shirt" }],
             pagination: null,
         });
-        (getAllCollections as any).mockResolvedValue({
+        (getAllCollections as Mock).mockResolvedValue({
             collections: [{ _id: "c1", slug: "summer-sale" }],
             pagination: null,
         });
-        (getAllPages as any).mockResolvedValue([
+        (getAllPages as Mock).mockResolvedValue([
             { _id: "pg1", slug: "about-us", status: "visible", isActive: true },
             { _id: "pg2", slug: "draft-page", status: "hidden", isActive: true },
         ]);

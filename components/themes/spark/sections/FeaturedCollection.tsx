@@ -192,6 +192,7 @@ export default function FeaturedCollection({
         const key = `${settings.collection_id}:${settings.products_to_show}`;
         if (key === ssrKey) return;
         if (!settings.collection_id) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor cleared the collection
             setProducts([]);
             setCollection(null);
             return;

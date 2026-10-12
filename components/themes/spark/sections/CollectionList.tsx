@@ -62,6 +62,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
         if (isGroup) {
             const groupId = settings.collection_group_id;
             if (!groupId) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor cleared the group
                 setCollections([]);
                 return;
             }

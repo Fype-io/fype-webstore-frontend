@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getApi } from "@/lib/client-api";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -68,7 +68,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
-    const ssrKey = useRef(settings.product_id).current;
+    const [ssrKey] = useState(settings.product_id);
 
     useEffect(() => {
         // If the editor switched back to the original SSR product id, restore
@@ -77,6 +77,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
         // state pointing at whatever was last fetched (commonly the other
         // product), causing the canvas to not reflect the reverted selection.
         if (settings.product_id === ssrKey) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor switched back to the SSR product
             setQuantity(1);
             setProduct(initialProduct ?? null);
             return;
@@ -131,9 +132,9 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
             const url = `${window.location.origin}${productHref}`;
             console.log('[FeaturedProduct] attempting share/copy for url:', url);
             // Native share first
-            if ((navigator as any).share) {
+            if (typeof navigator.share === "function") {
                 try {
-                    await (navigator as any).share({ title: displayProduct.name || 'Product', text: displayProduct.description?.replace(/<[^>]*>/g, '') || displayProduct.name || '', url });
+                    await navigator.share({ title: displayProduct.name || 'Product', text: displayProduct.description?.replace(/<[^>]*>/g, '') || displayProduct.name || '', url });
                     return;
                 } catch (err) {
                     console.warn('native share failed, falling back to copy', err);

@@ -28,6 +28,7 @@ export default function CollapsibleContent({ settings, items, isEditorPreview = 
     const [openIds, setOpenIds] = useState<Set<string>>(() => initialOpenIds(items));
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- re-apply the editor's Open-by-default flags
         setOpenIds(initialOpenIds(items));
         // Re-apply only when Open-by-default flags change (merchant customization).
         // eslint-disable-next-line react-hooks/exhaustive-deps

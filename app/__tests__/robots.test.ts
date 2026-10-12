@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import robots from "../robots";
 import { getShopByDomain } from "@/lib/storefront-api";
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/storefront-api", () => ({
 import { headers } from "next/headers";
 
 function mockHost(host: string) {
-    (headers as any).mockResolvedValue({ get: (key: string) => (key === "host" ? host : null) });
+    (headers as Mock).mockResolvedValue({ get: (key: string) => (key === "host" ? host : null) });
 }
 
 describe("robots.ts", () => {
@@ -24,7 +24,7 @@ describe("robots.ts", () => {
 
     it("allows crawling and links the sitemap when allowIndexing is true", async () => {
         mockHost("mystore.example.com");
-        (getShopByDomain as any).mockResolvedValue({
+        (getShopByDomain as Mock).mockResolvedValue({
             shopId: "shop-1",
             settings: { seo: { allowIndexing: true } },
         });
@@ -37,7 +37,7 @@ describe("robots.ts", () => {
 
     it("allows crawling when allowIndexing is unset (default true)", async () => {
         mockHost("mystore.example.com");
-        (getShopByDomain as any).mockResolvedValue({ shopId: "shop-1", settings: {} });
+        (getShopByDomain as Mock).mockResolvedValue({ shopId: "shop-1", settings: {} });
 
         const result = await robots();
 
@@ -46,7 +46,7 @@ describe("robots.ts", () => {
 
     it("disallows all crawling when allowIndexing is false", async () => {
         mockHost("mystore.example.com");
-        (getShopByDomain as any).mockResolvedValue({
+        (getShopByDomain as Mock).mockResolvedValue({
             shopId: "shop-1",
             settings: { seo: { allowIndexing: false } },
         });
@@ -59,7 +59,7 @@ describe("robots.ts", () => {
 
     it("defaults to allowing crawling when the shop can't be resolved", async () => {
         mockHost("unknown.example.com");
-        (getShopByDomain as any).mockResolvedValue(null);
+        (getShopByDomain as Mock).mockResolvedValue(null);
 
         const result = await robots();
 

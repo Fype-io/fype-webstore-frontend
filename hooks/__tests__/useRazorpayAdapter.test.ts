@@ -13,6 +13,17 @@ vi.mock("@/lib/payment-api", () => ({
 // shape preserved behavior: same script-ready polling, same options shape
 // passed to window.Razorpay, same createGatewayOrder/verifyGatewayPayment calls.
 
+// The parts of the options object the hook passes to window.Razorpay that these
+// tests read back (the global declaration types it only as Record<string, unknown>).
+interface CapturedRazorpayOptions {
+    key: string;
+    amount: number;
+    order_id: string;
+    prefill: Record<string, unknown>;
+    handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => Promise<void>;
+    modal: { ondismiss: () => void };
+}
+
 const SHIPPING = { fullName: "Test User", addressLine1: "1 Test Street", city: "Kochi", state: "Kerala", postalCode: "682001", country: "India" };
 
 describe("useRazorpayAdapter", () => {
@@ -65,10 +76,10 @@ describe("useRazorpayAdapter", () => {
         });
         vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: true });
 
-        let capturedOptions: any;
+        let capturedOptions: CapturedRazorpayOptions | undefined;
         const rzpOpen = vi.fn();
-        const RazorpayMock = vi.fn().mockImplementation((options: any) => {
-            capturedOptions = options;
+        const RazorpayMock = vi.fn().mockImplementation((options: Record<string, unknown>) => {
+            capturedOptions = options as unknown as CapturedRazorpayOptions;
             return { open: rzpOpen };
         });
 
@@ -86,15 +97,15 @@ describe("useRazorpayAdapter", () => {
 
         await waitFor(() => expect(capturedOptions).toBeDefined());
         expect(createGatewayOrder).toHaveBeenCalledWith("store-1", "razorpay", { amount: 10000, shippingAddress: SHIPPING });
-        expect(capturedOptions.key).toBe("rzp_test_key1");
-        expect(capturedOptions.amount).toBe(10000);
-        expect(capturedOptions.order_id).toBe("order_abc1");
-        expect(capturedOptions.prefill).toEqual({ name: "Test User", email: "test@example.com", contact: "9999999999", method: "upi" });
+        expect(capturedOptions!.key).toBe("rzp_test_key1");
+        expect(capturedOptions!.amount).toBe(10000);
+        expect(capturedOptions!.order_id).toBe("order_abc1");
+        expect(capturedOptions!.prefill).toEqual({ name: "Test User", email: "test@example.com", contact: "9999999999", method: "upi" });
         expect(rzpOpen).toHaveBeenCalled();
 
         // Simulate Razorpay's own checkout invoking our handler on success.
         await act(async () => {
-            await capturedOptions.handler({
+            await capturedOptions!.handler({
                 razorpay_order_id: "order_abc1",
                 razorpay_payment_id: "pay_abc1",
                 razorpay_signature: "sig_abc1",
@@ -122,9 +133,9 @@ describe("useRazorpayAdapter", () => {
             keyId: "rzp_test_key1",
         });
 
-        let capturedOptions: any;
-                window.Razorpay = vi.fn().mockImplementation((options: any) => {
-            capturedOptions = options;
+        let capturedOptions: CapturedRazorpayOptions | undefined;
+                window.Razorpay = vi.fn().mockImplementation((options: Record<string, unknown>) => {
+            capturedOptions = options as unknown as CapturedRazorpayOptions;
             return { open: vi.fn() };
         });
 
@@ -136,7 +147,7 @@ describe("useRazorpayAdapter", () => {
         await waitFor(() => expect(capturedOptions).toBeDefined());
 
         act(() => {
-            capturedOptions.modal.ondismiss();
+            capturedOptions!.modal.ondismiss();
         });
 
         await expect(settled).resolves.toEqual(new Error("Payment cancelled"));
@@ -151,9 +162,9 @@ describe("useRazorpayAdapter", () => {
         });
         vi.mocked(verifyGatewayPayment).mockResolvedValue({ verified: false });
 
-        let capturedOptions: any;
-                window.Razorpay = vi.fn().mockImplementation((options: any) => {
-            capturedOptions = options;
+        let capturedOptions: CapturedRazorpayOptions | undefined;
+                window.Razorpay = vi.fn().mockImplementation((options: Record<string, unknown>) => {
+            capturedOptions = options as unknown as CapturedRazorpayOptions;
             return { open: vi.fn() };
         });
 
@@ -165,7 +176,7 @@ describe("useRazorpayAdapter", () => {
         await waitFor(() => expect(capturedOptions).toBeDefined());
 
         await act(async () => {
-            await capturedOptions.handler({
+            await capturedOptions!.handler({
                 razorpay_order_id: "order_abc3",
                 razorpay_payment_id: "pay_abc3",
                 razorpay_signature: "bad_sig",

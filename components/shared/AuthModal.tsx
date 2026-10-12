@@ -132,6 +132,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
         // (phone or email) should land in the account even if the other
         // contact method is missing.
         if (user.isNew) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- advance the flow once login lands in the store
             setStep("profile");
             return;
         }
@@ -151,6 +152,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
         setPrevIsOpen(isOpen);
         if (!isOpen) {
             const next = initialStepForChannels();
+            // eslint-disable-next-line react-hooks/refs -- reset on close during render (React's "adjust state on prop change" pattern)
             resetForm(next.step, next.method);
         }
     }

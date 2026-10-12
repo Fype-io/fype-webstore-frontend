@@ -22,6 +22,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, classN
     const selectedOption = options.find((opt) => opt.value === value);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- show the selected label again when the list closes
         if (!isOpen) setSearch(selectedOption ? selectedOption.label : "");
     }, [isOpen, selectedOption]);
 

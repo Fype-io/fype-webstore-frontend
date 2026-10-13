@@ -45,7 +45,7 @@ describe("Spark CollectionList with a collection group", () => {
         expect(screen.queryByRole("link", { name: /Amouage/ })).not.toBeInTheDocument();
     });
 
-    it("points View all at the Collections page filtered to the group, unless a link was set", () => {
+    it("points the header link at the Collections page filtered to the group, unless a link was set", () => {
         const { rerender } = render(<CollectionList settings={settings({ goto_label: "View all" })} storeId="s1" initialCollections={[amouage]} />);
         expect(screen.getByRole("link", { name: /View all/ })).toHaveAttribute("href", "/collections?group=g1");
 

@@ -3,6 +3,7 @@ import type {
     Category,
     CollectionGroupDetail,
     CollectionSummary,
+    CollectionTile,
     Page,
     PageDetail,
     PaginationMeta,
@@ -155,6 +156,26 @@ export async function getCollectionProducts(
     }
 }
 
+// Like getCollectionProducts, plus how many products a shopper could see in
+// the collection in all, so Featured Collection knows whether to offer "View all".
+export async function getCollectionProductsWithTotal(
+    apiBaseUrl: string,
+    storeId: string,
+    collectionId: string,
+    limit = 4
+): Promise<{ products: StorefrontProduct[]; total: number }> {
+    if (!collectionId) return { products: [], total: 0 };
+    try {
+        const json = await fetchJson<{ data: { products: StorefrontProduct[]; total?: number } }>(
+            `${apiBaseUrl}/commerce/${storeId}/products/collections/${collectionId}/storefront-products?limit=${limit}`
+        );
+        const products = json.data.products ?? [];
+        return { products, total: json.data.total ?? products.length };
+    } catch {
+        return { products: [], total: 0 };
+    }
+}
+
 // One collection by its real _id — used to resolve Spark's Collection List
 // section (a merchant-picked set of collection_ids) into real tile data
 // (name + thumbnailUrl). Public endpoint, same as every other storefront
@@ -199,6 +220,31 @@ export async function getCollectionGroup(apiBaseUrl: string, storeId: string, id
         return json.data?.group ? json.data : null;
     } catch {
         return null;
+    }
+}
+
+export interface CollectionTilesResult {
+    tiles: CollectionTile[];
+    hasNextPage: boolean;
+}
+
+// The storefront Collections page, one chunk at a time: published collection
+// groups first, then collections no group generated. A failed request is an
+// empty page, never an error page.
+export async function getCollectionTiles(
+    apiBaseUrl: string,
+    storeId: string,
+    params: { page?: number; limit?: number } = {}
+): Promise<CollectionTilesResult> {
+    const query = new URLSearchParams({ page: String(params.page ?? 1), limit: String(params.limit ?? 12) });
+    try {
+        const json = await fetchJson<{ data: { items: CollectionTile[]; pagination?: { hasNextPage?: boolean } } }>(
+            `${apiBaseUrl}/commerce/${storeId}/storefront/collections?${query.toString()}`,
+            CATEGORY_REVALIDATE
+        );
+        return { tiles: json.data.items ?? [], hasNextPage: json.data.pagination?.hasNextPage === true };
+    } catch {
+        return { tiles: [], hasNextPage: false };
     }
 }
 

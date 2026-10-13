@@ -182,6 +182,13 @@ export interface CollectionSummary {
     thumbnailUrl?: string;
 }
 
+// One tile on the Collections page: a published collection group (shown like a
+// collection; it opens the page filtered to the group) or a standalone collection.
+export interface CollectionTile extends CollectionSummary {
+    kind: "group" | "collection";
+    description?: string;
+}
+
 // A published collection group with its visible collections in display order
 // (GET /:storeId/storefront/collection-groups/:idOrSlug). Collections with no
 // product a shopper could see are already left out by the API.

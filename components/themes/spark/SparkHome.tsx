@@ -87,6 +87,7 @@ interface SparkHomeProps {
     // data is keyed by the owning instance's id rather than one flat prop
     // per type.
     initialFeaturedCollectionProducts?: Record<string, StorefrontProduct[]>;
+    initialFeaturedCollectionTotals?: Record<string, number>;
     initialFeaturedCollections?: Record<string, CollectionSummary | null>;
     initialFeaturedProducts?: Record<string, (ProductDetail & { variants?: ProductVariant[] }) | null>;
     initialCollectionListCollections?: Record<string, CollectionSummary[]>;
@@ -132,6 +133,7 @@ export default function SparkHome({
     navItems,
     shop,
     initialFeaturedCollectionProducts = {},
+    initialFeaturedCollectionTotals = {},
     initialFeaturedCollections = {},
     initialFeaturedProducts = {},
     initialCollectionListCollections = {},
@@ -339,6 +341,7 @@ export default function SparkHome({
                         storeId={shop.shopId}
                         globalTax={shop.settings?.tax}
                         initialProducts={initialFeaturedCollectionProducts[section.id] ?? []}
+                        {...(initialFeaturedCollectionTotals[section.id] !== undefined ? { initialTotal: initialFeaturedCollectionTotals[section.id] } : {})}
                         initialCollection={initialFeaturedCollections?.[section.id] ?? null}
                         isEditorPreview={isEditorPreview}
                     />

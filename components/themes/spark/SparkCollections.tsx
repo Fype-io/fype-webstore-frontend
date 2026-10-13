@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Header from "./Header";
 import Footer from "./sections/Footer";
-import { mergeSparkConfig, type SparkConfig, type SparkConfigOverride } from "./sparkConfig";
+import { COLLECTIONS_PAGE_NAME_HOVER_DEFAULT, mergeSparkConfig, type SparkConfig, type SparkConfigOverride } from "./sparkConfig";
+import { collectionsPageGrid, safeHoverColor } from "./tileLayout";
+import { getApi } from "@/lib/client-api";
 import { SPARK_BLOCK_CLICKED, SPARK_DRAFT_READY, SPARK_DRAFT_UPDATE, SPARK_SECTION_CLICKED, SPARK_SET_ACTIVE_BLOCK, SPARK_SET_ACTIVE_SECTION, type SparkActiveBlock } from "./SparkHome";
-import type { CollectionSummary, ShopIdentity } from "@/types/storefront";
+import type { CollectionTile, ShopIdentity } from "@/types/storefront";
 import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
 import { li } from "motion/react-client";
@@ -14,18 +16,19 @@ import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor 
 
 const PLACEHOLDER_IMAGE = "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
 
-const COLLECTIONS_PER_ROW_CLASSES: Record<"2" | "3", string> = {
-    "2": "grid-cols-1 md:grid-cols-2",
-    "3": "grid-cols-1 md:grid-cols-3",
-};
+const TILES_PER_CHUNK = 12;
 
 interface SparkCollectionsProps {
     initialConfig: SparkConfig;
     shop: ShopIdentity;
     navItems: Array<{ label: string; href: string }>;
-    collections: CollectionSummary[];
-    // Set by the collection group page, which reuses this layout with the
-    // group's own title/description instead of the Collections page settings.
+    // The first chunk of tiles. For the whole Collections page, more are loaded from the API as the
+    // visitor scrolls (`hasMore`); for one group's view (`heading` set) all of the group's tiles are
+    // here already and are simply revealed a chunk at a time.
+    collections: CollectionTile[];
+    hasMore?: boolean;
+    // Set by the group view, which reuses this layout with the group's own
+    // title/description instead of the Collections page settings.
     heading?: string;
     subheading?: string;
 }
@@ -38,7 +41,7 @@ interface SparkCollectionsProps {
 // selected-state border + label, and clicking anywhere in the content area
 // posts SPARK_SECTION_CLICKED with the 'page_settings:collections' sentinel
 // to open the sidebar's "Layout" row.
-export default function SparkCollections({ initialConfig, shop, navItems, collections, heading, subheading }: SparkCollectionsProps) {
+export default function SparkCollections({ initialConfig, shop, navItems, collections, hasMore = false, heading, subheading }: SparkCollectionsProps) {
     const [liveConfig, setLiveConfig] = useState(initialConfig);
     const [isEditorPreview, setIsEditorPreview] = useState(false);
     const [isSelected, setIsSelected] = useState(false);
@@ -69,7 +72,56 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
     }, []);
 
     const settings = liveConfig.page_settings.collections;
-    const gridClass = COLLECTIONS_PER_ROW_CLASSES[settings.collections_per_row];
+    const gridClass = collectionsPageGrid(settings.collections_per_row);
+    const hoverColor = safeHoverColor(settings.name_hover_color, COLLECTIONS_PAGE_NAME_HOVER_DEFAULT);
+
+    // Infinite scroll. Group view: every tile is already here, reveal a chunk at a time. Whole
+    // Collections page: fetch the next chunk from the API when the sentinel below comes into view.
+    const groupView = heading !== undefined;
+    const [tiles, setTiles] = useState<CollectionTile[]>(collections);
+    const [visibleCount, setVisibleCount] = useState(TILES_PER_CHUNK);
+    const [serverHasMore, setServerHasMore] = useState(hasMore);
+    const nextPage = useRef(2);
+    const loadingRef = useRef(false);
+    const sentinelRef = useRef<HTMLDivElement>(null);
+
+    const shownTiles = groupView ? tiles.slice(0, visibleCount) : tiles;
+    const moreToShow = groupView ? visibleCount < tiles.length : serverHasMore;
+
+    const loadMore = useCallback(async () => {
+        if (loadingRef.current) return;
+        if (groupView) {
+            setVisibleCount((n) => n + TILES_PER_CHUNK);
+            return;
+        }
+        loadingRef.current = true;
+        try {
+            const res = await getApi<{ data: { items: CollectionTile[]; pagination?: { hasNextPage?: boolean } } }>(
+                `/commerce/${shop.shopId}/storefront/collections?page=${nextPage.current}&limit=${TILES_PER_CHUNK}`
+            );
+            const incoming = res.data?.data?.items ?? [];
+            nextPage.current += 1;
+            setTiles((current) => {
+                const have = new Set(current.map((t) => `${t.kind}:${t._id}`));
+                return [...current, ...incoming.filter((t) => !have.has(`${t.kind}:${t._id}`))];
+            });
+            setServerHasMore(res.data?.data?.pagination?.hasNextPage === true && incoming.length > 0);
+        } catch {
+            // Stop here rather than retrying in a loop; the tiles already shown stay.
+            setServerHasMore(false);
+        } finally {
+            loadingRef.current = false;
+        }
+    }, [groupView, shop.shopId]);
+
+    // Re-observed after every chunk, so a still-visible sentinel (a short page) asks for the next one.
+    useEffect(() => {
+        const node = sentinelRef.current;
+        if (!node || !moreToShow || typeof IntersectionObserver === "undefined") return;
+        const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && void loadMore(), { rootMargin: "400px" });
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [moreToShow, loadMore, shownTiles.length]);
 
     // Header/Footer are global across every Spark page, not Home-only — see
     // SparkShop.tsx's identical comment for the full rationale.
@@ -138,10 +190,16 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
                     <p className="text-gray-500 text-lg max-w-xl mx-auto">{subheading ?? settings.subtitle}</p>
                 </div>
 
-                {collections.length > 0 ? (
+                {shownTiles.length > 0 ? (
+                    <>
                     <div className={`grid gap-8 ${gridClass}`}>
-                        {collections.map((collection) => (
-                            <Link key={collection._id} href={`/collections/${collection.slug}`} className="group cursor-pointer block">
+                        {shownTiles.map((collection) => (
+                            <Link
+                                key={`${collection.kind}:${collection._id}`}
+                                href={collection.kind === "group" ? `/collections?group=${encodeURIComponent(collection.slug)}` : `/collections/${collection.slug}`}
+                                className="group cursor-pointer block"
+                                style={{ "--spark-name-hover": hoverColor } as React.CSSProperties}
+                            >
                                 <div className="aspect-[4/3] bg-gray-50 rounded-2xl overflow-hidden mb-6 relative border border-gray-100 shadow-sm isolate">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
@@ -152,8 +210,8 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
                                     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
                                 </div>
                                 {settings.show_collection_name && (
-                                    <div className="flex items-center justify-between px-2">
-                                        <h2 className="text-2xl font-bold text-gray-900 group-hover:text-gray-500 transition-colors">
+                                    <div className="flex items-center justify-center gap-3 px-2">
+                                        <h2 className="spark-tile-name text-2xl font-bold text-gray-900 text-center">
                                             {collection.name}
                                         </h2>
                                         {/* Inline SVG, not lucide-react (not a dependency here) — same
@@ -177,6 +235,16 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
                             </Link>
                         ))}
                     </div>
+                    {moreToShow && (
+                        <div ref={sentinelRef} className="mt-12 flex justify-center" data-testid="collections-sentinel">
+                            {typeof IntersectionObserver === "undefined" && (
+                                <button type="button" onClick={() => void loadMore()} className="px-8 py-3 rounded-full border border-gray-900 font-medium hover:bg-gray-900 hover:text-white transition-colors">
+                                    Show more
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    </>
                 ) : (
                     <div className="text-center py-20">
                         <p className="text-gray-500 text-lg">No collections yet</p>

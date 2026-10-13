@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { getApiBaseUrl, getShopByDomain, getAllProducts, getAllCollections, getAllPages } from "@/lib/storefront-api";
-import { getRequestHost } from "@/lib/request-host";
+import { getRequestHost, getRequestOrigin } from "@/lib/request-host";
+import { productHref } from "@/lib/product-url";
 
 // Per-tenant sitemap.xml, resolved from the request host (same pattern as
 // robots.ts and the homepage's getHomeData()). Single page fetched at a high
@@ -13,10 +14,8 @@ const CATALOG_LIMIT = 500;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const headersList = await headers();
-    const host = headersList.get("host") ?? "";
     const domain = getRequestHost(headersList);
-    const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = getRequestOrigin(headersList);
 
     const apiBaseUrl = await getApiBaseUrl();
     const shop = await getShopByDomain(apiBaseUrl, domain);
@@ -36,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: baseUrl, lastModified: now, priority: 1 },
         ...productsResult.products.map(
             (product): MetadataRoute.Sitemap[number] => ({
-                url: `${baseUrl}/products/${product.productId}`,
+                url: `${baseUrl}${productHref(product)}`,
                 lastModified: now,
             })
         ),

@@ -10,6 +10,7 @@ import type { SparkFeaturedProductSettings } from "../sparkConfig";
 import type { ProductDetail, ProductVariant, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { productHref } from "@/lib/product-url";
 
 type FeaturedProductDetail = ProductDetail & { variants?: ProductVariant[] };
 
@@ -124,12 +125,12 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
     // preview so merchants can see layout; guard the actual add-to-cart
     // action when `isEditorPreview` is true so no real cart requests fire.
     const showQuickCart = settings.show_add_to_cart && !isPlaceholder && !displayProduct.hasVariants;
-    const productHref = `/products/${displayProduct.productId}`;
+    const pageHref = productHref(displayProduct);
 
     const handleShareClick = async (e: React.MouseEvent) => {
         e.stopPropagation();
         try {
-            const url = `${window.location.origin}${productHref}`;
+            const url = `${window.location.origin}${pageHref}`;
             console.log('[FeaturedProduct] attempting share/copy for url:', url);
             // Native share first
             if (typeof navigator.share === "function") {
@@ -209,7 +210,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
     const ImageBlock = (
         <div className="w-full lg:w-1/2">
             <Link
-                href={productHref}
+                href={pageHref}
                 className="block w-full aspect-square bg-gray-50 rounded-2xl lg:rounded-3xl overflow-hidden relative isolate group shadow-sm border border-gray-100"
                 aria-disabled={isPlaceholder}
                 onClick={(e) => {
@@ -293,7 +294,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
                         </>
                     ) : (
                         <Link
-                            href={productHref}
+                            href={pageHref}
                             className="w-full text-center bg-black text-white py-4 px-8 rounded-full font-medium hover:bg-gray-800 transition-colors text-base mb-12"
                             aria-disabled={isPlaceholder}
                             onClick={(e) => {
@@ -322,7 +323,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
                     <span>{copied ? 'Copied' : 'Share'}</span>
                 </button>
                 <Link
-                    href={productHref}
+                    href={pageHref}
                     className="flex items-center gap-2 hover:text-black transition-colors group"
                     aria-disabled={isPlaceholder}
                     onClick={(e) => {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { TaxSettings } from "@/types/storefront";
 import { currencyPrefix } from "@/lib/currency";
+import { productHref } from "@/lib/product-url";
 
 export interface GridProduct {
     id: string;
@@ -59,7 +60,7 @@ export default function ProductGrid({ products, title = "Fresh Drops", globalTax
                         return (
                             <Link
                                 key={product.id || product.productId}
-                                href={`/products/${product.productId}`}
+                                href={productHref(product)}
                                 className="flex flex-col gap-4 group cursor-pointer"
                             >
                                 <div className="overflow-hidden rounded-lg">

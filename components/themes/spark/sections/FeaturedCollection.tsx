@@ -11,6 +11,7 @@ import { featuredCollectionGrid } from "../tileLayout";
 import type { CollectionSummary, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { productHref } from "@/lib/product-url";
 
 interface FeaturedCollectionProps {
     settings: SparkFeaturedCollectionSettings;
@@ -116,7 +117,7 @@ function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: F
 
     return (
         <div className="group relative">
-            <Link href={`/products/${product.productId}`} className="block">
+            <Link href={productHref(product)} className="block">
                 <div className="aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden mb-5 relative isolate">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

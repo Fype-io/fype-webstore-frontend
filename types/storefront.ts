@@ -144,7 +144,10 @@ export interface ShopIdentity {
 export interface StorefrontProduct {
     productId: string;
     name: string;
-    slug: string;
+    // The product's URL slug; null/absent for a product not backfilled yet (its link falls back to productId).
+    slug?: string | null;
+    // Set on a best-selling variant tile: the variant the product page should open on.
+    variantId?: string;
     image: string;
     images: string[];
     price: number;
@@ -233,6 +236,8 @@ export interface VariantOptions {
 
 export interface ProductDetail {
     productId: string;
+    // The product's URL slug; null for a product not backfilled yet.
+    slug?: string | null;
     name: string;
     description: string;
     images: string[];

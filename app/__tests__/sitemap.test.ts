@@ -39,7 +39,10 @@ describe("sitemap.ts", () => {
         mockHost("mystore.example.com");
         (getShopByDomain as Mock).mockResolvedValue({ shopId: "shop-1" });
         (getAllProducts as Mock).mockResolvedValue({
-            products: [{ productId: "p1", slug: "cool-shirt" }],
+            products: [
+                { productId: "p1", slug: "cool-shirt" },
+                { productId: "p2", slug: null },
+            ],
             pagination: null,
         });
         (getAllCollections as Mock).mockResolvedValue({
@@ -55,7 +58,10 @@ describe("sitemap.ts", () => {
         const urls = result.map((entry) => entry.url);
 
         expect(urls).toContain("http://mystore.example.com");
-        expect(urls).toContain("http://mystore.example.com/products/p1");
+        expect(urls).toContain("http://mystore.example.com/products/cool-shirt");
+        // a product not backfilled yet is listed by its id until it has a slug
+        expect(urls).toContain("http://mystore.example.com/products/p2");
+        expect(urls).not.toContain("http://mystore.example.com/products/p1");
         expect(urls).toContain("http://mystore.example.com/collections/summer-sale");
         expect(urls).toContain("http://mystore.example.com/about-us");
         expect(urls).not.toContain("http://mystore.example.com/draft-page");

@@ -10,3 +10,11 @@ export function getRequestHost(headers: HeaderSource): string {
         .replace(/:\d*$/, "")
         .replace(/\.+$/, "");
 }
+
+// The public origin of a request, e.g. "https://shop.example.com": https in production
+// (the Worker sits behind TLS), http in development. Used for absolute URLs in the
+// sitemap, canonical links and structured data.
+export function getRequestOrigin(headers: HeaderSource): string {
+    const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+    return `${protocol}://${headers.get("host") ?? ""}`;
+}

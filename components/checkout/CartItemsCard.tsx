@@ -12,6 +12,8 @@ interface CartItemsCardProps {
     onToggle?: () => void;
     onUpdateQuantity: (item: CartItem, quantity: number) => void;
     onRemove: (item: CartItem) => void;
+    /** Why the last quantity change or removal failed; shown under the header. */
+    error?: string | null;
     className?: string;
 }
 
@@ -22,6 +24,7 @@ export default function CartItemsCard({
     onToggle,
     onUpdateQuantity,
     onRemove,
+    error,
     className = "",
 }: CartItemsCardProps) {
     const { format } = useStoreCurrency();
@@ -49,6 +52,12 @@ export default function CartItemsCard({
                     )}
                 </div>
             </div>
+
+            {error && (
+                <div role="alert" className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                    {error}
+                </div>
+            )}
 
             {showItems && (
                 <div className="flex flex-col gap-5 sm:gap-6">
@@ -78,6 +87,7 @@ export default function CartItemsCard({
                                         <button
                                             type="button"
                                             onClick={() => onRemove(item)}
+                                            aria-label={`Remove ${item.name}`}
                                             className="p-1.5 sm:p-2 border border-gray-200 rounded-lg text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors shadow-sm"
                                         >
                                             <Trash2 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" size={18} />
@@ -86,6 +96,7 @@ export default function CartItemsCard({
                                             <button
                                                 type="button"
                                                 onClick={() => onUpdateQuantity(item, Math.max(1, item.quantity - 1))}
+                                                aria-label={`Decrease quantity of ${item.name}`}
                                                 className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-50 transition-colors"
                                             >
                                                 <Minus className="w-4 h-4 sm:w-[18px] sm:h-[18px]" size={18} />
@@ -96,6 +107,7 @@ export default function CartItemsCard({
                                             <button
                                                 type="button"
                                                 onClick={() => onUpdateQuantity(item, Math.min(item.maxQuantity || 99, item.quantity + 1))}
+                                                aria-label={`Increase quantity of ${item.name}`}
                                                 className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-50 transition-colors"
                                             >
                                                 <Plus className="w-4 h-4 sm:w-[18px] sm:h-[18px]" size={18} />

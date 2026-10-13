@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchWishlist, removeFromWishlist, addToCart } from "@/redux/slices/userSlice";
 import type { StorefrontProduct } from "@/types/storefront";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { productHref } from "@/lib/product-url";
 
 const DEFAULT_PRODUCT_IMAGE =
     "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
@@ -65,7 +66,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
     const handleMoveToBag = (product: StorefrontProduct) => {
         if (!storeId) return;
         if (product.hasVariants) {
-            router.push(`/products/${product.productId}`);
+            router.push(productHref(product));
             return;
         }
         dispatch(addToCart({ storeId, productId: product.productId, quantity: 1 }));
@@ -100,7 +101,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
         <div className="space-y-6">
             {products.map((item) => (
                 <div key={item.productId} className="flex gap-6 pb-8 border-b border-gray-100 last:border-0 relative">
-                    <Link href={`/products/${item.productId}`} className="w-24 h-32 sm:w-32 sm:h-40 bg-gray-50 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-100 block">
+                    <Link href={productHref(item)} className="w-24 h-32 sm:w-32 sm:h-40 bg-gray-50 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-100 block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={item.image || item.images?.[0] || DEFAULT_PRODUCT_IMAGE}
@@ -112,7 +113,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                     <div className="flex-grow flex flex-col py-1">
                         <div className="flex justify-between items-start">
                             <div>
-                                <Link href={`/products/${item.productId}`} className="text-sm sm:text-base font-semibold text-gray-900 uppercase tracking-tight hover:text-black transition-colors">
+                                <Link href={productHref(item)} className="text-sm sm:text-base font-semibold text-gray-900 uppercase tracking-tight hover:text-black transition-colors">
                                     {item.name}
                                 </Link>
                             </div>

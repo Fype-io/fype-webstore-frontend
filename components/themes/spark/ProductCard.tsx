@@ -9,6 +9,7 @@ import { calculateProductTax } from "@/utils/taxCalculator";
 import type { StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "./SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { productHref } from "@/lib/product-url";
 
 const DEFAULT_PRODUCT_IMAGE =
     "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
@@ -112,7 +113,7 @@ export default function ProductCard({
         <div className="group relative">
             {showWishlistButton && <WishlistButton productId={product.productId} storeId={storeId} shopName={shopName} />}
 
-            <Link href={`/products/${product.productId}`} className="block">
+            <Link href={productHref(product, product.variantId)} className="block">
                 <div className="aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden mb-5 relative isolate">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

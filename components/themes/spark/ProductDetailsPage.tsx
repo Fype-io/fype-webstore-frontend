@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Heart, Minus, Plus, RefreshCw, Shield, Truck } from "lucide-react";
 import type { ProductDetailsPageProps } from "@/components/themes/registry";
@@ -19,6 +19,8 @@ import { useSparkCart } from "./SparkCartContext";
 import type { SparkProductHighlight } from "./sparkConfig";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
+import { productHref } from "@/lib/product-url";
+import { initialSelectedOptions, syncVariantParam } from "@/lib/variant-selection";
 
 const NEW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const HIGHLIGHT_ICONS = [Truck, RefreshCw, Shield];
@@ -53,7 +55,7 @@ function ProductHighlights({ highlights, compact }: { highlights: SparkProductHi
 // wrapper exists here — this component was already "use client" (variant
 // selection, cart dispatch), so the live-editing postMessage listener is
 // embedded directly instead of adding a redundant wrapper layer.
-export default function ProductDetailsPage({ shop, navPages, allPages, product, variants, variantOptions, relatedProducts, themeConfig }: ProductDetailsPageProps) {
+export default function ProductDetailsPage({ shop, navPages, allPages, product, variants, variantOptions, relatedProducts, initialVariantId, themeConfig }: ProductDetailsPageProps) {
     const { prefix } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated, wishlist } = useAppSelector((state) => state.user);
@@ -121,15 +123,12 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
 
     // All hooks must run unconditionally (before the `!product` early return
     // below) — guarded internally with optional chaining instead.
-    const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
-        const init: Record<string, string> = {};
-        if (hasVariants) {
-            options.forEach((opt) => {
-                if (opt.values.length > 0) init[opt.name] = opt.values[0];
-            });
-        }
-        return init;
-    });
+    // Starts on the variant named by ?variant= when it is one of this product's, else the
+    // first value of each option. Comes from the server-rendered prop (not window.location),
+    // so server and browser render the same thing.
+    const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() =>
+        hasVariants ? initialSelectedOptions(options, variants, initialVariantId) : {}
+    );
     const [quantity, setQuantity] = useState(1);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [cartMessage, setCartMessage] = useState<string | null>(null);
@@ -149,6 +148,15 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
         return v ?? null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedOptions, variants, hasVariants]);
+
+    // Once the shopper has changed an option, the address bar follows the chosen variant
+    // (?variant=<id>), so a shared link opens on it. Not on first paint (the plain URL stays
+    // clean), and never inside the theme customizer's frame.
+    const optionChosen = useRef(false);
+    useEffect(() => {
+        if (!optionChosen.current || !hasVariants || isEditorPreviewFrame()) return;
+        syncVariantParam(selectedVariant?.variantId ?? null);
+    }, [selectedVariant, hasVariants]);
 
     const displayData = useMemo(() => {
         if (!product) return { price: 0, compareAtPrice: 0, taxApplied: false, taxRate: undefined, images: [] as string[], available: false };
@@ -217,6 +225,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     }
 
     const handleOptionChange = (name: string, value: string) => {
+        optionChosen.current = true;
         setSelectedOptions((prev) => ({ ...prev, [name]: value }));
         setOptionError(false);
     };
@@ -489,7 +498,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                     <h2 className="text-xl font-bold mb-6">You might also like</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
                         {relatedProducts.slice(0, 4).map((related) => (
-                            <Link href={`/products/${related.productId}`} key={related.productId} className="group block">
+                            <Link href={productHref(related)} key={related.productId} className="group block">
                                 <div className="aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden mb-3">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img

@@ -377,7 +377,7 @@ export async function getProductDetails(
                     relatedProducts?: StorefrontProduct[];
                 };
             };
-        }>(`${apiBaseUrl}/commerce/${storeId}/product/${productId}`, PRODUCT_DETAIL_REVALIDATE);
+        }>(`${apiBaseUrl}/commerce/${storeId}/product/${encodeURIComponent(productId)}`, PRODUCT_DETAIL_REVALIDATE);
 
         const { product, relatedProducts } = json.data.data;
         return {

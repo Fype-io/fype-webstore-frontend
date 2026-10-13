@@ -8,6 +8,7 @@ import { calculateProductTax } from "@/utils/taxCalculator";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart, addToGuestCart, addToWishlist, fetchCart, fetchGuestCart, removeFromWishlist } from "@/redux/slices/userSlice";
 import type { ProductDetail, ProductVariant, StorefrontProduct, TaxSettings, VariantOptions } from "@/types/storefront";
+import { productHref } from "@/lib/product-url";
 
 interface ProductDetailsViewProps {
     product: ProductDetail;
@@ -242,7 +243,7 @@ export default function ProductDetailsView({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {relatedProducts.slice(0, 4).map((related) => (
                             <Link
-                                href={`/products/${related.productId}`}
+                                href={productHref(related)}
                                 key={related.productId}
                                 className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition block"
                             >

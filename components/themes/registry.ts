@@ -65,6 +65,8 @@ export interface ProductDetailsPageProps {
     variants: ProductVariant[];
     variantOptions: VariantOptions | null;
     relatedProducts: StorefrontProduct[];
+    // The variant named by ?variant= in the address, when the page should open on it.
+    initialVariantId?: string;
     themeConfig?: Record<string, unknown>;
 }
 

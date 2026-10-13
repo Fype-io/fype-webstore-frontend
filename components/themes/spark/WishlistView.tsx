@@ -9,6 +9,7 @@ import { addToCart, addToGuestCart, fetchCart, fetchGuestCart, fetchWishlist, re
 import { useSparkCart } from "./SparkCartContext";
 import type { StorefrontProduct } from "@/types/storefront";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import { productHref } from "@/lib/product-url";
 
 interface WishlistViewProps {
     storeId?: string;
@@ -105,7 +106,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                         return (
                             <div key={item.productId} className="group border border-gray-200 hover:border-black transition-all rounded-2xl overflow-hidden bg-white flex flex-col relative">
                                 <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                                    <Link href={`/products/${item.productId}`} className="block h-full">
+                                    <Link href={productHref(item)} className="block h-full">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </Link>
@@ -121,13 +122,13 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                                     )}
                                 </div>
                                 <div className="p-4 flex-1 flex flex-col justify-between">
-                                    <Link href={`/products/${item.productId}`} className="mb-3">
+                                    <Link href={productHref(item)} className="mb-3">
                                         <h3 className="font-semibold text-sm text-gray-900 line-clamp-1 group-hover:text-gray-600 transition-colors">{item.name}</h3>
                                         <p className="text-sm text-gray-500 font-medium mt-1">{prefix}{Number(item.price).toLocaleString(locale)}</p>
                                     </Link>
                                     {item.hasVariants ? (
                                         <Link
-                                            href={`/products/${item.productId}`}
+                                            href={productHref(item)}
                                             className="w-full bg-black text-white py-2.5 px-4 rounded-xl text-xs font-medium hover:bg-gray-800 transition-colors text-center spark-font-body"
                                         >
                                             Choose options

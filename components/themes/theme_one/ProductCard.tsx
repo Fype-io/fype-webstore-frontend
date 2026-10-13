@@ -3,6 +3,7 @@ import WishlistButton from "./WishlistButton";
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { currencyPrefix } from "@/lib/currency";
+import { productHref } from "@/lib/product-url";
 
 const DEFAULT_PRODUCT_IMAGE =
     "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
@@ -43,7 +44,7 @@ export default function ProductCard({ product, globalTax, shopName, storeId, cur
         <div className="flex flex-col gap-3 group relative">
             <WishlistButton productId={product.productId} storeId={storeId} shopName={shopName} />
 
-            <Link href={`/products/${product.productId}`}>
+            <Link href={productHref(product, product.variantId)}>
                 <div
                     className="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105 cursor-pointer"
                     style={{ backgroundImage: `url("${productImage}")` }}

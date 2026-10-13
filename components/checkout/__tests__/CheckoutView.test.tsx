@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
@@ -6,13 +6,13 @@ import { configureStore } from "@reduxjs/toolkit";
 import userReducer from "@/redux/slices/userSlice";
 import CheckoutView from "../CheckoutView";
 import type StripeExpressCheckout from "../StripeExpressCheckout";
-import { ORDER_NOW_NOTE } from "../checkoutUtils";
+import { ADDRESS_REQUIRED_MESSAGE, ORDER_NOW_NOTE } from "../checkoutUtils";
 import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeAdapter";
 import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
 import { fetchStockForCartItems } from "@/lib/stock-api";
 import { calculateShippingRate } from "@/lib/shipping-api";
-import { postApi } from "@/lib/client-api";
+import { getApi, postApi } from "@/lib/client-api";
 import { AxiosError, type AxiosResponse } from "axios";
 
 // Mock next/navigation's useRouter (CheckoutView calls router.push on success).
@@ -162,6 +162,10 @@ function buildStore() {
     });
 }
 
+// Place order is no longer disabled while the address loads (a missing address
+// is a validation error on click), so a test that orders waits for the address.
+const addressLoaded = async () => expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
+
 function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>> = {}) {
     const store = buildStore();
     return render(
@@ -237,6 +241,7 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
         renderCheckout({ activeGateways: ["razorpay", "stripe"] });
 
         await screen.findByText("Pay via UPI");
+        await addressLoaded();
         // Click the radio input directly rather than the label's text - jsdom's
         // implicit label->control click forwarding isn't reliable enough here
         // to depend on for the test, and the radio is the actual state trigger.
@@ -258,6 +263,7 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
         renderCheckout({ activeGateways: ["razorpay", "stripe"] });
 
         await screen.findByText("Card (international)");
+        await addressLoaded();
         const stripeRadio = document.querySelector('input[value="stripe_card"]') as HTMLInputElement;
         expect(stripeRadio).not.toBeNull();
         await user.click(stripeRadio);
@@ -278,6 +284,62 @@ const asStripe = (a: object) => a as unknown as ReturnType<typeof useStripeAdapt
 // delhivery), then follows the store's setting. With no gateway and no COD,
 // "Order now" places the order unpaid (paymentMethod "manual") and the store
 // arranges payment. It never appears alongside a gateway or COD.
+// A missing address used to grey out Place order with no explanation (and on
+// mobile turn the button into "Add address"). It's now a validation error on the
+// address card when the shopper tries to order.
+describe("CheckoutView - ordering without a delivery address", () => {
+    const addressesResponse = (addresses: unknown[]) => ({ data: { success: true, data: { addresses } } });
+    const orderNowButtons = () => screen.getAllByRole("button", { name: /order now/i });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe);
+        vi.mocked(getApi).mockResolvedValue(addressesResponse([]) as Awaited<ReturnType<typeof getApi>>);
+    });
+    afterEach(() => {
+        vi.mocked(getApi).mockResolvedValue(addressesResponse([TEST_ADDRESS]) as Awaited<ReturnType<typeof getApi>>);
+    });
+
+    it("keeps the order buttons clickable and shows a validation error instead of ordering", async () => {
+        const user = userEvent.setup();
+        renderCheckout({ activeGateways: [] });
+        await waitFor(() => expect(getApi).toHaveBeenCalled());
+
+        const [mobile, desktop] = orderNowButtons();
+        expect(mobile).not.toBeDisabled();
+        expect(desktop).not.toBeDisabled();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+        await user.click(desktop!);
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(ADDRESS_REQUIRED_MESSAGE);
+        expect(postApi).not.toHaveBeenCalled();
+    });
+
+    it("on mobile, the bottom button shows the same error rather than jumping to the address form", async () => {
+        const user = userEvent.setup();
+        renderCheckout({ activeGateways: [] });
+        await waitFor(() => expect(getApi).toHaveBeenCalled());
+
+        await user.click(orderNowButtons()[0]!);
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(ADDRESS_REQUIRED_MESSAGE);
+        expect(screen.queryByText("Add New Address")).not.toBeInTheDocument();
+        expect(postApi).not.toHaveBeenCalled();
+    });
+
+    it("opens the address form from the card's add button", async () => {
+        const user = userEvent.setup();
+        renderCheckout({ activeGateways: [] });
+
+        await user.click(await screen.findByRole("button", { name: "+ Add delivery address" }));
+
+        expect((await screen.findAllByText("Add New Address")).length).toBeGreaterThan(0);
+    });
+});
+
 describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -303,7 +365,8 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
 
         const buttons = orderNowButtons();
         expect(buttons).toHaveLength(2); // mobile + desktop
-        await waitFor(() => expect(buttons[1]).not.toBeDisabled()); // once the address loads
+        await addressLoaded();
+        await waitFor(() => expect(buttons[1]).not.toBeDisabled());
         await user.click(buttons[1]!);
 
         await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
@@ -319,6 +382,7 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
         expect(screen.queryByText(ORDER_NOW_NOTE)).not.toBeInTheDocument();
 
         const placeOrder = screen.getByRole("button", { name: /place order/i });
+        await addressLoaded();
         await waitFor(() => expect(placeOrder).not.toBeDisabled());
         await user.click(placeOrder);
 
@@ -337,6 +401,7 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
         renderCheckout({ ...courier, activeGateways: [], cod: { enabled: true, minOrderValue: null } });
 
         const placeOrder = await screen.findByRole("button", { name: /place order/i });
+        await addressLoaded();
         await waitFor(() => expect(placeOrder).not.toBeDisabled());
         await user.click(placeOrder);
 

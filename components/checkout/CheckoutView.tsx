@@ -31,7 +31,7 @@ import PaymentMethodList from "./PaymentMethodList";
 import PaymentSummaryCard from "./PaymentSummaryCard";
 import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, type StripeExpressConfig, type WalletAvailability } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
-import { addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
+import { ADDRESS_REQUIRED_MESSAGE, addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
 import type { ShipmentProvider } from "@/lib/shipment-provider";
 
 interface CheckoutViewProps {
@@ -91,6 +91,9 @@ export default function CheckoutView({
     const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
     const [processingOrder, setProcessingOrder] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    // Shown on the address card only while no address is selected (DeliveryAddressCard).
+    const [addressError, setAddressError] = useState<string | null>(null);
+    const addressSectionRef = useRef<HTMLDivElement>(null);
     const [walletAvailability, setWalletAvailability] = useState<WalletAvailability>({});
     // A wallet picked before Stripe reported this device can't use it counts as unpicked.
     const pickedWallet = walletOf(pickedPaymentMethod);
@@ -255,8 +258,18 @@ export default function CheckoutView({
         return null;
     };
 
+    // A missing address is a validation error shown on the address card, not a
+    // silently disabled button: the shopper is told what's missing and taken to it.
+    const requireAddress = (): boolean => {
+        if (selectedAddress) return true;
+        setAddressError(ADDRESS_REQUIRED_MESSAGE);
+        addressSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+        return false;
+    };
+
     const handlePlaceOrder = async (method: PaymentMethodId | null = selectedPaymentMethod) => {
-        if (!cart?.items.length || !selectedAddress) return;
+        if (!cart?.items.length) return;
+        if (!requireAddress()) return;
         setOrderError(null);
 
         const stockError = await checkCartStock();
@@ -337,6 +350,7 @@ export default function CheckoutView({
                 const created = await dispatch(addAddress({ storeId, address: payload })).unwrap();
                 setSelectedAddress(created);
             }
+            setAddressError(null);
             setEditingAddress(null);
             setView("checkout");
         } finally {
@@ -431,7 +445,8 @@ export default function CheckoutView({
                 onError={setOrderError}
             />
         ) : null;
-    const ctaDisabled = !selectedAddress || notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading;
+    // No address doesn't disable the buttons: clicking them shows ADDRESS_REQUIRED_MESSAGE instead.
+    const ctaDisabled = notServiceable || isCalculatingShipping || processingOrder || isPaymentLoading;
     const desktopPlaceDisabled = ctaDisabled || (!codOnly && !orderNow && !selectedPaymentMethod);
 
     const checkoutMain = (
@@ -458,17 +473,20 @@ export default function CheckoutView({
                             onRemove={handleRemove}
                         />
 
-                        <DeliveryAddressCard
-                            addresses={addresses}
-                            selected={selectedAddress}
-                            onChange={() => setView("select-address")}
-                            onAdd={() => {
-                                setEditingAddress(null);
-                                setView("add-address");
-                            }}
-                            notServiceable={notServiceable}
-                            tatInfo={tatInfo?.deliveryDate}
-                        />
+                        <div ref={addressSectionRef}>
+                            <DeliveryAddressCard
+                                addresses={addresses}
+                                selected={selectedAddress}
+                                onChange={() => setView("select-address")}
+                                onAdd={() => {
+                                    setEditingAddress(null);
+                                    setView("add-address");
+                                }}
+                                notServiceable={notServiceable}
+                                tatInfo={tatInfo?.deliveryDate}
+                                error={addressError}
+                            />
+                        </div>
 
                         {orderNow ? (
                             <section className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-2 md:mt-5">
@@ -506,15 +524,11 @@ export default function CheckoutView({
                     </div>
 
                     <CheckoutCta
-                        label={addresses.length === 0 ? "Add address" : orderNow ? "Order now" : "Proceed to pay"}
-                        disabled={addresses.length === 0 ? false : ctaDisabled}
+                        label={orderNow ? "Order now" : "Proceed to pay"}
+                        disabled={ctaDisabled}
                         loading={processingOrder || isPaymentLoading}
                         onClick={() => {
-                            if (addresses.length === 0) {
-                                setEditingAddress(null);
-                                setView("add-address");
-                                return;
-                            }
+                            if (!requireAddress()) return;
                             if (orderNow) {
                                 handlePlaceOrder(null);
                                 return;
@@ -549,11 +563,7 @@ export default function CheckoutView({
                                 disabled={desktopPlaceDisabled}
                                 loading={processingOrder || isPaymentLoading}
                                 onClick={() => {
-                                    if (addresses.length === 0) {
-                                        setEditingAddress(null);
-                                        setView("add-address");
-                                        return;
-                                    }
+                                    if (!requireAddress()) return;
                                     handlePlaceOrder(codOnly ? selectedPaymentMethod ?? "cod" : selectedPaymentMethod);
                                 }}
                             />
@@ -579,6 +589,7 @@ export default function CheckoutView({
             selectedId={selectedAddress ? addressKey(selectedAddress) : null}
             onSelect={(address) => {
                 setSelectedAddress(address);
+                setAddressError(null);
                 setView("checkout");
             }}
             onEdit={(address) => {

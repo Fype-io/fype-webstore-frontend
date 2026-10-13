@@ -11,6 +11,8 @@ interface DeliveryAddressCardProps {
     onAdd: () => void;
     notServiceable?: boolean;
     tatInfo?: string | null;
+    /** Set when the shopper tried to order without an address; shown as a validation error. */
+    error?: string | null;
 }
 
 export default function DeliveryAddressCard({
@@ -20,9 +22,15 @@ export default function DeliveryAddressCard({
     onAdd,
     notServiceable,
     tatInfo,
+    error,
 }: DeliveryAddressCardProps) {
+    const showError = !!error && !selected;
     return (
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-4 sm:gap-5">
+        <section
+            className={`bg-white rounded-2xl border shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-4 sm:gap-5 transition-colors ${
+                showError ? "border-red-300 ring-1 ring-red-200" : "border-gray-100"
+            }`}
+        >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" size={20} />
@@ -36,19 +44,23 @@ export default function DeliveryAddressCard({
             </div>
 
             {addresses.length === 0 || !selected ? (
-                <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm">
-                        <MapPin className="w-6 h-6 text-gray-400" size={24} />
-                    </div>
-                    <h3 className="text-gray-800 font-semibold mb-1">No Address Added</h3>
-                    <p className="text-gray-500 text-sm mb-4 px-6">Please add a delivery address to proceed with your order.</p>
+                <div className="flex flex-col gap-2">
                     <button
                         type="button"
                         onClick={onAdd}
-                        className="text-gray-900 font-semibold text-sm px-5 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                        className={`w-full text-left text-sm font-semibold px-4 py-3 rounded-xl border border-dashed transition-colors ${
+                            showError
+                                ? "border-red-300 bg-red-50/40 text-red-700 hover:bg-red-50"
+                                : "border-gray-300 bg-gray-50 text-gray-900 hover:bg-gray-100"
+                        }`}
                     >
-                        + Add New Address
+                        + Add delivery address
                     </button>
+                    {showError && (
+                        <p role="alert" className="text-[13px] text-red-600 font-medium">
+                            {error}
+                        </p>
+                    )}
                 </div>
             ) : (
                 <div className="flex flex-col gap-1.5 mt-1">

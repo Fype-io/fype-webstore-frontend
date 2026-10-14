@@ -12,7 +12,7 @@ import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeA
 import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
 import { fetchStockForCartItems } from "@/lib/stock-api";
 import { calculateShippingRate } from "@/lib/shipping-api";
-import { getApi, postApi } from "@/lib/client-api";
+import { deleteApi, getApi, postApi, putApi } from "@/lib/client-api";
 import { AxiosError, type AxiosResponse } from "axios";
 
 // Mock next/navigation's useRouter (CheckoutView calls router.push on success,

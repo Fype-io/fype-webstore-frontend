@@ -91,6 +91,7 @@ export default function CheckoutView({
     const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
     const [processingOrder, setProcessingOrder] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    const [cartItemError, setCartItemError] = useState<string | null>(null);
     // Shown on the address card only while no address is selected (DeliveryAddressCard).
     const [addressError, setAddressError] = useState<string | null>(null);
     const addressSectionRef = useRef<HTMLDivElement>(null);

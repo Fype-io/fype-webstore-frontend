@@ -17,6 +17,15 @@ interface BannerSliderProps {
     onSlideClick?: (id: string) => void;
 }
 
+// Phones get the slide's portrait image — max-width 767px is everything
+// below Tailwind's `md`, the breakpoint the rest of Spark switches layout at.
+// The editor's mobile preview is a 390px iframe, so it matches too.
+const MOBILE_IMAGE_MEDIA = "(max-width: 767px)";
+
+// srcset splits candidates on whitespace, so a URL with a raw space would be
+// cut short there (unlike `src`, which takes it whole).
+const toSrcSetUrl = (url: string) => url.replace(/\s/g, encodeURIComponent);
+
 function resolveBannerLink(value: string): { href: string; external: boolean } {
     const href = value.trim();
     if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
@@ -128,15 +137,31 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                     transition={{ duration: 0.8 }}
                     className={`absolute inset-0 w-full h-full ${isEditorPreview ? "cursor-pointer" : ""}`}
                 >
-                    {s.image_url && (
-                        // eslint-disable-next-line @next/next/no-img-element -- store-uploaded/arbitrary remote hero image, position/fit are runtime settings
-                        <img
-                            src={s.image_url}
-                            alt=""
-                            draggable={false}
-                            className={`absolute inset-0 w-full h-full select-none ${objectFitClass}`}
-                            style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
-                        />
+                    {s.image_url ? (
+                        // <picture> so each device downloads only its own image.
+                        <picture>
+                            {s.mobile_image_url && <source media={MOBILE_IMAGE_MEDIA} srcSet={toSrcSetUrl(s.mobile_image_url)} />}
+                            <img
+                                src={s.image_url}
+                                alt=""
+                                draggable={false}
+                                className={`absolute inset-0 w-full h-full select-none ${objectFitClass}`}
+                                style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                            />
+                        </picture>
+                    ) : (
+                        // Mobile image only: phones show it, wider screens keep
+                        // the no-image look they had before it was added.
+                        s.mobile_image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element -- store-uploaded/arbitrary remote hero image, position/fit are runtime settings
+                            <img
+                                src={s.mobile_image_url}
+                                alt=""
+                                draggable={false}
+                                className={`absolute inset-0 w-full h-full select-none md:hidden ${objectFitClass}`}
+                                style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                            />
+                        )
                     )}
                     <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: s.overlay_color, opacity: (s.overlay_opacity ?? 40) / 100 }} />
                 </motion.div>

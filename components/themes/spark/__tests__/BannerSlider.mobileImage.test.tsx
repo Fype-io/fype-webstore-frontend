@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { act, render } from "@testing-library/react";
 import BannerSlider from "../sections/BannerSlider";
 import type { SparkBannerSlideBlockSettings, SparkImageBannerSettings } from "../sparkConfig";
 
@@ -79,5 +79,87 @@ describe("Spark BannerSlider mobile (portrait) image", () => {
         const container = renderSlide({ image_url: "", mobile_image_url: "" });
 
         expect(container.querySelector("img")).toBeNull();
+    });
+});
+
+// Chrome keeps painting the old image while a <picture> re-picks in place
+// (until the new one has fully downloaded), so the slider remounts it instead.
+describe("Spark BannerSlider never shows the desktop image while the portrait loads", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    const stubMatchMedia = () => {
+        const listeners = new Set<() => void>();
+        vi.stubGlobal("matchMedia", (query: string) => ({
+            media: query,
+            matches: false,
+            addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+            removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+        }));
+        return () => listeners.forEach((fn) => fn());
+    };
+
+    it("remounts the picture when the screen crosses the mobile breakpoint", () => {
+        const crossBreakpoint = stubMatchMedia();
+        const container = renderSlide({ mobile_image_url: "https://cdn.example.com/portrait.jpg" });
+        const before = container.querySelector("picture");
+
+        act(() => crossBreakpoint());
+
+        expect(container.querySelector("picture")).not.toBe(before);
+    });
+
+    it("remounts the picture when the mobile image changes", () => {
+        const slide = (mobile: string) => [{ id: "s1", settings: { ...baseSlide, mobile_image_url: mobile } }];
+        const { container, rerender } = render(<BannerSlider settings={section} slides={slide("")} />);
+        const before = container.querySelector("picture");
+
+        rerender(<BannerSlider settings={section} slides={slide("https://cdn.example.com/portrait.jpg")} />);
+
+        expect(container.querySelector("picture")).not.toBe(before);
+    });
+
+    it("keeps the same picture across unrelated re-renders", () => {
+        const slides = [{ id: "s1", settings: { ...baseSlide, mobile_image_url: "https://cdn.example.com/portrait.jpg" } }];
+        const { container, rerender } = render(<BannerSlider settings={section} slides={slides} />);
+        const before = container.querySelector("picture");
+
+        rerender(<BannerSlider settings={section} slides={[{ ...slides[0], settings: { ...slides[0].settings, heading_text: "Changed" } }]} />);
+
+        expect(container.querySelector("picture")).toBe(before);
+    });
+
+    describe("background download of every slide's images", () => {
+        const stubImage = () => {
+            const loaded: string[] = [];
+            vi.stubGlobal(
+                "Image",
+                class {
+                    set src(url: string) {
+                        loaded.push(url);
+                    }
+                }
+            );
+            return loaded;
+        };
+        const slides = [
+            { id: "s1", settings: { ...baseSlide, mobile_image_url: "https://cdn.example.com/portrait.jpg" } },
+            { id: "s2", settings: { ...baseSlide, image_url: "https://cdn.example.com/second.jpg", mobile_image_url: "" } },
+        ];
+
+        it("happens in the editor preview, skipping empty images", () => {
+            const loaded = stubImage();
+            render(<BannerSlider settings={section} slides={slides} isEditorPreview />);
+
+            expect(loaded).toEqual(["https://cdn.example.com/desktop.jpg", "https://cdn.example.com/portrait.jpg", "https://cdn.example.com/second.jpg"]);
+        });
+
+        it("never happens for real shoppers", () => {
+            const loaded = stubImage();
+            render(<BannerSlider settings={section} slides={slides} />);
+
+            expect(loaded).toEqual([]);
+        });
     });
 });

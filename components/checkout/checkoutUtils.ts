@@ -65,6 +65,9 @@ export function codAvailability(
 // (paymentMethod "manual") and the store arranges payment with the customer.
 export const ORDER_NOW_NOTE = "The store will contact you to arrange payment.";
 
+/** Shown on the delivery address card when the shopper tries to order without one. */
+export const ADDRESS_REQUIRED_MESSAGE = "Please add a delivery address to place your order.";
+
 /** An amount in the store's currency ("₹500", "$25", "AED 100"); INR when the currency is unknown. */
 export function formatStoreMoney(amount: number, currency?: string | null): string {
     return formatPrice(amount, currency);

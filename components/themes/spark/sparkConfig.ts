@@ -57,6 +57,10 @@ export interface SparkHeaderSettings {
 // Content Alignment moved down into each slide.
 export interface SparkBannerSlideBlockSettings {
     image_url: string;
+    // Optional portrait image for phones — BannerSlider swaps it in below
+    // the `md` breakpoint. Empty/missing = phones use image_url, so slides
+    // saved before this field existed render exactly as before.
+    mobile_image_url?: string;
     image_fit: "Cover" | "Contain" | "Stretch" | "Original Size";
     overlay_color: string;
     overlay_opacity: number;

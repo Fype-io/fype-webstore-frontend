@@ -15,9 +15,11 @@ import { calculateShippingRate } from "@/lib/shipping-api";
 import { getApi, postApi } from "@/lib/client-api";
 import { AxiosError, type AxiosResponse } from "axios";
 
-// Mock next/navigation's useRouter (CheckoutView calls router.push on success).
+// Mock next/navigation's useRouter (CheckoutView calls router.push on success,
+// and router.back once the last cart item is removed).
+const { routerBack } = vi.hoisted(() => ({ routerBack: vi.fn() }));
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: vi.fn() }),
+    useRouter: () => ({ push: vi.fn(), back: routerBack }),
 }));
 
 vi.mock("@/lib/shipping-api", () => ({
@@ -57,6 +59,7 @@ vi.mock("@/lib/client-api", async () => {
         ...actual,
         getApi: vi.fn().mockResolvedValue({ data: { success: true, data: { addresses: [TEST_ADDRESS] } } }),
         postApi: vi.fn().mockRejectedValue(new Error("not exercised in this test file")),
+        putApi: vi.fn(),
         deleteApi: vi.fn().mockResolvedValue({ data: { success: true } }),
     };
 });
@@ -274,6 +277,85 @@ describe("CheckoutView - multi-gateway payment method rendering and dispatch", (
 
         await waitFor(() => expect(readyStripe.open).toHaveBeenCalledTimes(1));
         expect(readyRazorpay.open).not.toHaveBeenCalled();
+    });
+});
+
+// The cart API finds a line by productId + variantId (crmApp cart.controller.ts).
+// Checkout used to send the line's own _id ("item1"), so every +/- was a 404 and
+// every delete a no-op, and the failure was never shown.
+describe("CheckoutView - changing and removing cart items", () => {
+    const cartWith = (quantity: number) => ({
+        _id: "cart1",
+        cartId: "cart1",
+        items: [{ _id: "item1", productId: "prod1", name: "Test product", image: "", price: 100, quantity, maxQuantity: 10 }],
+        subtotal: 100 * quantity,
+        tax: 0,
+        shipping: 0,
+        discount: 0,
+        total: 100 * quantity,
+        itemCount: quantity,
+    });
+    const cartResponse = (cart: object) => ({ data: { success: true, data: { cart } } });
+    const notFound = () =>
+        new AxiosError("Request failed", "ERR_BAD_REQUEST", undefined, undefined, {
+            status: 404,
+            data: { success: false, code: "ITEM_NOT_FOUND", message: "Item not found in cart" },
+        } as AxiosResponse);
+    // CartItemsCard renders twice (mobile and desktop); either copy triggers the same handler.
+    const button = (name: string) => screen.getAllByRole("button", { name })[0]!;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe);
+    });
+
+    it("increases the quantity by productId, not the cart line's _id, and shows the new quantity", async () => {
+        vi.mocked(putApi).mockResolvedValueOnce(cartResponse(cartWith(2)) as Awaited<ReturnType<typeof putApi>>);
+        const user = userEvent.setup();
+        renderCheckout();
+
+        await user.click(await screen.findAllByRole("button", { name: "Increase quantity of Test product" }).then((b) => b[0]!));
+
+        await waitFor(() => expect(putApi).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(putApi).mock.calls[0]?.[0]).toBe("/commerce/cart/store-1/update/prod1");
+        expect(vi.mocked(putApi).mock.calls[0]?.[1]).toMatchObject({ quantity: 2 });
+        expect(await screen.findAllByText("2 items")).not.toHaveLength(0);
+    });
+
+    it("removes the item by productId and goes back once the cart is empty", async () => {
+        vi.mocked(deleteApi).mockResolvedValueOnce(cartResponse({ ...cartWith(1), items: [], itemCount: 0 }) as Awaited<ReturnType<typeof deleteApi>>);
+        const user = userEvent.setup();
+        renderCheckout();
+
+        await user.click(await screen.findAllByRole("button", { name: "Remove Test product" }).then((b) => b[0]!));
+
+        await waitFor(() => expect(routerBack).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(deleteApi).mock.calls[0]?.[0]).toBe("/commerce/cart/store-1/remove/prod1");
+    });
+
+    it("shows why a quantity change failed instead of silently doing nothing", async () => {
+        vi.mocked(putApi).mockRejectedValueOnce(notFound());
+        const user = userEvent.setup();
+        renderCheckout();
+
+        await user.click(await screen.findAllByRole("button", { name: "Increase quantity of Test product" }).then((b) => b[0]!));
+
+        expect((await screen.findAllByRole("alert")).map((el) => el.textContent)).toContain("Item not found in cart");
+        expect(button("Increase quantity of Test product")).toBeInTheDocument();
+    });
+
+    it("stays on checkout and shows the error when removing the last item fails", async () => {
+        vi.mocked(deleteApi).mockRejectedValueOnce(notFound());
+        const user = userEvent.setup();
+        renderCheckout();
+
+        await user.click(await screen.findAllByRole("button", { name: "Remove Test product" }).then((b) => b[0]!));
+
+        expect((await screen.findAllByRole("alert")).map((el) => el.textContent)).toContain("Item not found in cart");
+        expect(routerBack).not.toHaveBeenCalled();
+        expect(button("Remove Test product")).toBeInTheDocument();
     });
 });
 

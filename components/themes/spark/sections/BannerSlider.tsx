@@ -17,6 +17,34 @@ interface BannerSliderProps {
     onSlideClick?: (id: string) => void;
 }
 
+// Phones get the slide's portrait image — max-width 767px is everything
+// below Tailwind's `md`, the breakpoint the rest of Spark switches layout at.
+// The editor's mobile preview is a 390px iframe, so it matches too.
+const MOBILE_IMAGE_MEDIA = "(max-width: 767px)";
+
+// srcset splits candidates on whitespace, so a URL with a raw space would be
+// cut short there (unlike `src`, which takes it whole).
+const toSrcSetUrl = (url: string) => url.replace(/\s/g, encodeURIComponent);
+
+// How many times the viewport has crossed MOBILE_IMAGE_MEDIA since mount —
+// 0 on the server and at hydration, so it never causes a mismatch. Used to
+// remount the <picture>: when its source starts or stops matching in place
+// (the editor's device toggle resizes the preview iframe without reloading
+// it), Chrome keeps painting the old image until the new one has fully
+// downloaded — seconds of the desktop image on a phone-sized screen. A fresh
+// <picture> picks the right image from the start instead.
+function useMobileMediaFlips() {
+    const [flips, setFlips] = useState(0);
+    useEffect(() => {
+        if (typeof window.matchMedia !== "function") return;
+        const query = window.matchMedia(MOBILE_IMAGE_MEDIA);
+        const onChange = () => setFlips((n) => n + 1);
+        query.addEventListener("change", onChange);
+        return () => query.removeEventListener("change", onChange);
+    }, []);
+    return flips;
+}
+
 function resolveBannerLink(value: string): { href: string; external: boolean } {
     const href = value.trim();
     if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
@@ -37,6 +65,15 @@ function resolveBannerLink(value: string): { href: string; external: boolean } {
 // the editor.
 export default function BannerSlider({ settings, slides, isEditorPreview = false, activeSlideId = null, onSlideClick }: BannerSliderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const mobileMediaFlips = useMobileMediaFlips();
+
+    // Editor preview only: fetch every slide's images up front, so toggling
+    // the device or moving between slides shows them without a download wait.
+    const slideImageUrls = slides.flatMap((slide) => [slide.settings.image_url, slide.settings.mobile_image_url]).filter(Boolean).join("\n");
+    useEffect(() => {
+        if (!isEditorPreview || !slideImageUrls) return;
+        for (const url of slideImageUrls.split("\n")) new Image().src = url;
+    }, [isEditorPreview, slideImageUrls]);
 
     const activeSlideIndex = activeSlideId ? slides.findIndex((s) => s.id === activeSlideId) : -1;
     // Editor selection overrides autoplay's position outright — derived
@@ -128,15 +165,33 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                     transition={{ duration: 0.8 }}
                     className={`absolute inset-0 w-full h-full ${isEditorPreview ? "cursor-pointer" : ""}`}
                 >
-                    {s.image_url && (
-                        // eslint-disable-next-line @next/next/no-img-element -- store-uploaded/arbitrary remote hero image, position/fit are runtime settings
-                        <img
-                            src={s.image_url}
-                            alt=""
-                            draggable={false}
-                            className={`absolute inset-0 w-full h-full select-none ${objectFitClass}`}
-                            style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
-                        />
+                    {s.image_url ? (
+                        // <picture> so each device downloads only its own image.
+                        // Keyed so a changed image or a breakpoint crossing
+                        // remounts it (see useMobileMediaFlips).
+                        <picture key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
+                            {s.mobile_image_url && <source media={MOBILE_IMAGE_MEDIA} srcSet={toSrcSetUrl(s.mobile_image_url)} />}
+                            <img
+                                src={s.image_url}
+                                alt=""
+                                draggable={false}
+                                className={`absolute inset-0 w-full h-full select-none ${objectFitClass}`}
+                                style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                            />
+                        </picture>
+                    ) : (
+                        // Mobile image only: phones show it, wider screens keep
+                        // the no-image look they had before it was added.
+                        s.mobile_image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element -- store-uploaded/arbitrary remote hero image, position/fit are runtime settings
+                            <img
+                                src={s.mobile_image_url}
+                                alt=""
+                                draggable={false}
+                                className={`absolute inset-0 w-full h-full select-none md:hidden ${objectFitClass}`}
+                                style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                            />
+                        )
                     )}
                     <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: s.overlay_color, opacity: (s.overlay_opacity ?? 40) / 100 }} />
                 </motion.div>

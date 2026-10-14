@@ -91,6 +91,7 @@ export default function CheckoutView({
     const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
     const [processingOrder, setProcessingOrder] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    const [cartItemError, setCartItemError] = useState<string | null>(null);
     const [walletAvailability, setWalletAvailability] = useState<WalletAvailability>({});
     // A wallet picked before Stripe reported this device can't use it counts as unpicked.
     const pickedWallet = walletOf(pickedPaymentMethod);
@@ -311,16 +312,31 @@ export default function CheckoutView({
         }
     };
 
-    const handleUpdateQuantity = (item: CartItem, quantity: number) => {
-        dispatch(updateCartItem({ storeId, itemId: item._id, variantId: item.variantId, quantity }));
+    // The cart API finds a line by productId + variantId (crmApp cart.controller.ts),
+    // not by the line's own _id - same as the cart drawer sends. Sending _id made
+    // every +/- a 404 and every delete a no-op, with nothing shown to the shopper.
+    const handleUpdateQuantity = async (item: CartItem, quantity: number) => {
+        setCartItemError(null);
+        try {
+            await dispatch(updateCartItem({ storeId, itemId: item.productId, variantId: item.variantId, quantity })).unwrap();
+        } catch (error) {
+            setCartItemError(typeof error === "string" ? error : "Couldn't update your cart. Please try again.");
+        }
     };
 
-    const handleRemove = (item: CartItem) => {
-        dispatch(removeFromCart({ storeId, itemId: item._id, variantId: item.variantId }));
+    const handleRemove = async (item: CartItem) => {
+        setCartItemError(null);
+        const wasLastItem = cart?.items.length === 1;
+        try {
+            await dispatch(removeFromCart({ storeId, itemId: item.productId, variantId: item.variantId })).unwrap();
+        } catch (error) {
+            setCartItemError(typeof error === "string" ? error : "Couldn't remove the item. Please try again.");
+            return;
+        }
         // Removing the last item would otherwise leave the user staring at
         // checkout's own "cart is empty" state - go back to wherever they
-        // came from instead.
-        if (cart?.items.length === 1) {
+        // came from instead. Only once it's really gone.
+        if (wasLastItem) {
             router.back();
         }
     };
@@ -449,6 +465,7 @@ export default function CheckoutView({
                                 onToggle={() => setIsOrderSummaryOpen((open) => !open)}
                                 onUpdateQuantity={handleUpdateQuantity}
                                 onRemove={handleRemove}
+                                error={cartItemError}
                             />
                         </div>
                         <CartItemsCard
@@ -456,6 +473,7 @@ export default function CheckoutView({
                             className="hidden md:flex"
                             onUpdateQuantity={handleUpdateQuantity}
                             onRemove={handleRemove}
+                            error={cartItemError}
                         />
 
                         <DeliveryAddressCard

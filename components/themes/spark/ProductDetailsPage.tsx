@@ -20,7 +20,7 @@ import type { SparkProductHighlight } from "./sparkConfig";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 import { productHref } from "@/lib/product-url";
-import { initialSelectedOptions, syncVariantParam } from "@/lib/variant-selection";
+import { galleryImages, initialSelectedOptions, syncVariantParam } from "@/lib/variant-selection";
 
 const NEW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const HIGHLIGHT_ICONS = [Truck, RefreshCw, Shield];
@@ -129,6 +129,11 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() =>
         hasVariants ? initialSelectedOptions(options, variants, initialVariantId) : {}
     );
+    // Whether a variant has been chosen: named by ?variant= (one of this product's), or picked
+    // by the shopper. Until then the gallery shows the product's own images (galleryImages).
+    const [variantChosen, setVariantChosen] = useState(
+        () => hasVariants && !!initialVariantId && variants.some((v) => v.variantId === initialVariantId)
+    );
     const [quantity, setQuantity] = useState(1);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [cartMessage, setCartMessage] = useState<string | null>(null);
@@ -163,13 +168,12 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
 
         const continueSelling = product.inventory?.continueSelling ?? product.continueSellWhenOutOfStock ?? false;
         if (hasVariants && selectedVariant) {
-            const variantImages = selectedVariant.image?.filter((img) => img && img.trim() !== "") ?? [];
             return {
                 price: selectedVariant.price,
                 compareAtPrice: selectedVariant.compareAtPrice,
                 taxApplied: product.price.taxApplied,
                 taxRate: product.price.taxRate,
-                images: variantImages.length > 0 ? variantImages : product.images ?? [],
+                images: galleryImages(product.images, selectedVariant.image, variantChosen),
                 available: (selectedVariant.inventory?.available ?? 0) > 0 || continueSelling,
             };
         }
@@ -181,7 +185,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
             images: product.images ?? [],
             available: (product.inventory?.available ?? 0) > 0 || continueSelling,
         };
-    }, [hasVariants, selectedVariant, product]);
+    }, [hasVariants, selectedVariant, product, variantChosen]);
 
     const [prevVariant, setPrevVariant] = useState(selectedVariant);
     if (selectedVariant !== prevVariant) {
@@ -226,6 +230,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
 
     const handleOptionChange = (name: string, value: string) => {
         optionChosen.current = true;
+        setVariantChosen(true);
         setSelectedOptions((prev) => ({ ...prev, [name]: value }));
         setOptionError(false);
     };

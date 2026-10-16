@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart, addToGuestCart, addToWishlist, fetchCart, fetchGuestCart, removeFromWishlist } from "@/redux/slices/userSlice";
 import type { ProductDetail, ProductVariant, StorefrontProduct, TaxSettings, VariantOptions } from "@/types/storefront";
 import { productHref } from "@/lib/product-url";
+import { galleryImages } from "@/lib/variant-selection";
 
 interface ProductDetailsViewProps {
     product: ProductDetail;
@@ -44,6 +45,8 @@ export default function ProductDetailsView({
         }
         return init;
     });
+    // Until the shopper picks an option, the gallery shows the product's own images (galleryImages).
+    const [variantChosen, setVariantChosen] = useState(false);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [cartMessage, setCartMessage] = useState<string | null>(null);
 
@@ -65,13 +68,12 @@ export default function ProductDetailsView({
     const displayData = useMemo(() => {
         const continueSelling = product.inventory?.continueSelling ?? product.continueSellWhenOutOfStock ?? false;
         if (hasVariants && selectedVariant) {
-            const variantImages = selectedVariant.image?.filter((img) => img && img.trim() !== "") ?? [];
             return {
                 price: selectedVariant.price,
                 compareAtPrice: selectedVariant.compareAtPrice,
                 taxApplied: product.price.taxApplied,
                 taxRate: product.price.taxRate,
-                images: variantImages.length > 0 ? variantImages : product.images ?? [],
+                images: galleryImages(product.images, selectedVariant.image, variantChosen),
                 available: (selectedVariant.inventory?.available ?? 0) > 0 || continueSelling,
             };
         }
@@ -83,7 +85,7 @@ export default function ProductDetailsView({
             images: product.images ?? [],
             available: (product.inventory?.available ?? 0) > 0 || continueSelling,
         };
-    }, [hasVariants, selectedVariant, product]);
+    }, [hasVariants, selectedVariant, product, variantChosen]);
 
     // Clear the stale "cart coming soon" message when the selected variant
     // changes — adjusted during render rather than an effect (same reasoning
@@ -94,7 +96,10 @@ export default function ProductDetailsView({
         setCartMessage(null);
     }
 
-    const handleOptionChange = (name: string, value: string) => setSelectedOptions((prev) => ({ ...prev, [name]: value }));
+    const handleOptionChange = (name: string, value: string) => {
+        setVariantChosen(true);
+        setSelectedOptions((prev) => ({ ...prev, [name]: value }));
+    };
 
     const handleWishlistToggle = () => {
         if (!isAuthenticated) {

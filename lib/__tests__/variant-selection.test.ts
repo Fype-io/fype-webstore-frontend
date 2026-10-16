@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { initialSelectedOptions, syncVariantParam } from "../variant-selection";
+import { galleryImages, initialSelectedOptions, syncVariantParam } from "../variant-selection";
 
 const options = [
     { name: "Size", values: ["50ML", "100ML"] },
@@ -10,6 +10,24 @@ const variants = [
     { variantId: "VAR-2", options: { Size: "100ML", Strength: "EDP" } },
     { variantId: "VAR-3", options: { Size: "100ML", Strength: "Parfum" } },
 ];
+
+describe("galleryImages", () => {
+    it("shows the product's own images until a variant is chosen", () => {
+        expect(galleryImages(["base.jpg"], ["var.jpg"], false)).toEqual(["base.jpg"]);
+    });
+
+    it("shows the chosen variant's images", () => {
+        expect(galleryImages(["base.jpg"], ["var.jpg"], true)).toEqual(["var.jpg"]);
+    });
+
+    it("falls back to the other side when one has no images, ignoring blank entries", () => {
+        expect(galleryImages([], ["var.jpg"], false)).toEqual(["var.jpg"]);
+        expect(galleryImages(undefined, ["var.jpg"], false)).toEqual(["var.jpg"]);
+        expect(galleryImages(["base.jpg"], [""], true)).toEqual(["base.jpg"]);
+        expect(galleryImages(["base.jpg"], undefined, true)).toEqual(["base.jpg"]);
+        expect(galleryImages([" "], [], false)).toEqual([]);
+    });
+});
 
 describe("initialSelectedOptions", () => {
     it("starts on the first value of every option when no variant is requested", () => {

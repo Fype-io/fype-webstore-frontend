@@ -16,7 +16,9 @@ vi.mock("@/redux/slices/userSlice", () => ({
 vi.mock("@/components/themes/spark/SparkCartContext", () => ({ useSparkCart: () => ({ openCart: vi.fn() }) }));
 vi.mock("@/components/themes/spark/SparkHeaderShell", () => ({ default: () => null }));
 vi.mock("@/components/themes/spark/sections/Footer", () => ({ default: () => null }));
-vi.mock("@/components/themes/spark/ProductGallery", () => ({ default: () => null }));
+vi.mock("@/components/themes/spark/ProductGallery", () => ({
+    default: ({ images }: { images: string[] }) => <div data-testid="gallery">{images.join(",")}</div>,
+}));
 vi.mock("@/components/themes/spark/Header", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/shared/AuthModal", () => ({ default: () => null }));
@@ -32,7 +34,7 @@ const product = {
     slug: "reflection",
     name: "Reflection",
     description: "",
-    images: [],
+    images: ["base.jpg"],
     hasVariants: true,
     continueSellWhenOutOfStock: false,
     skuCode: "",
@@ -48,7 +50,7 @@ const variant = (id: string, size: string, strength: string, price: number): Pro
     compareAtPrice: 0,
     sku: id,
     barcode: "",
-    image: [],
+    image: [`${id}.jpg`],
     available: true,
     inventory: { available: 5, trackQuantity: true },
 });
@@ -62,13 +64,13 @@ const variantOptions = {
 };
 
 const shop = { shopId: "s1", shopName: "Shop", settings: {} } as never;
-const renderPage = (initialVariantId?: string) =>
+const renderPage = (initialVariantId?: string, pageProduct: ProductDetail = product) =>
     render(
         <ProductDetailsPage
             shop={shop}
             navPages={[]}
             footerPages={[]}
-            product={product}
+            product={pageProduct}
             variants={variants}
             variantOptions={variantOptions}
             relatedProducts={[]}
@@ -129,5 +131,42 @@ describe("Spark product page: variant in the URL", () => {
         renderPage();
         fireEvent.click(screen.getByRole("button", { name: "100ML" }));
         expect(window.location.search).toBe("");
+    });
+});
+
+describe("Spark product page: gallery images", () => {
+    const gallery = () => screen.getByTestId("gallery").textContent;
+
+    beforeEach(() => {
+        window.history.replaceState(null, "", "/products/reflection");
+        (isEditorPreview as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    });
+    afterEach(() => window.history.replaceState(null, "", "/"));
+
+    it("shows the product's own images on the plain product URL, though the first variant is pre-selected", () => {
+        renderPage();
+        expect(selected("50ML")).toBe(true);
+        expect(gallery()).toBe("base.jpg");
+    });
+
+    it("shows the variant's images when ?variant= names one", () => {
+        renderPage("VAR-3");
+        expect(gallery()).toBe("VAR-3.jpg");
+    });
+
+    it("shows the product's own images when ?variant= is unknown or stale", () => {
+        renderPage("VAR-deleted");
+        expect(gallery()).toBe("base.jpg");
+    });
+
+    it("switches to the variant's images once the shopper picks an option", () => {
+        renderPage();
+        fireEvent.click(screen.getByRole("button", { name: "100ML" }));
+        expect(gallery()).toBe("VAR-2.jpg");
+    });
+
+    it("shows the pre-selected variant's images when the product has none of its own", () => {
+        renderPage(undefined, { ...product, images: [] });
+        expect(gallery()).toBe("VAR-1.jpg");
     });
 });

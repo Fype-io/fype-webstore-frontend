@@ -26,15 +26,26 @@ const normalizeStatus = (status?: string): string => {
     return s === "partially_delivered" ? "delivered" : s;
 };
 
+/**
+ * What the popup shows under "Current Status". With no AWB (manual orders, or not
+ * dispatched yet) it tracks by the order number, which already carries the store's
+ * prefix (#1000) - adding another "#" showed "##1000".
+ */
+export function trackingReference(trackingNumber: string, isOrderNumber: boolean): { text: string; label: string } {
+    return isOrderNumber ? { text: trackingNumber, label: "Order Number" } : { text: `#${trackingNumber}`, label: "AWB Number" };
+}
+
 interface OrderTrackingProps {
     storeId: string;
     trackingNumber: string;
+    /** True when trackingNumber is the order number (no AWB yet), not an AWB. */
+    isOrderNumber?: boolean;
     provider?: string;
     orderStatus?: string;
     onClose: () => void;
 }
 
-export default function OrderTracking({ storeId, trackingNumber, provider, orderStatus, onClose }: OrderTrackingProps) {
+export default function OrderTracking({ storeId, trackingNumber, isOrderNumber = false, provider, orderStatus, onClose }: OrderTrackingProps) {
     const dispatch = useAppDispatch();
     const { trackingData, trackingLoading, trackingError } = useAppSelector((state) => state.user);
 
@@ -55,6 +66,7 @@ export default function OrderTracking({ storeId, trackingNumber, provider, order
         return [...(trackingData.events || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }, [trackingData]);
 
+    const reference = trackingReference(trackingNumber, isOrderNumber);
     const normalized = normalizeStatus(orderStatus);
     const terminal = TERMINAL[normalized];
     const currentIdx = STATUS_STEPS.findIndex((s) => s.key === normalized);
@@ -76,8 +88,8 @@ export default function OrderTracking({ storeId, trackingNumber, provider, order
                                 <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest mt-1">Current Status</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-sm font-mono font-medium text-gray-900">#{trackingNumber}</p>
-                                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">{trackingNumber?.startsWith("ORD-") ? "Order Number" : "AWB Number"}</p>
+                                <p className="text-sm font-mono font-medium text-gray-900">{reference.text}</p>
+                                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">{reference.label}</p>
                             </div>
                         </div>
                     )}

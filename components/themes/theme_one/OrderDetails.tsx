@@ -18,7 +18,7 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
     // The order's own currency (saved since checkout became server-priced), else the store's.
     const prefix = currencyPrefix(order.currency || currency);
     const locale = currencyLocale(order.currency || currency);
-    const [trackingInfo, setTrackingInfo] = useState<{ number: string; carrier?: string; orderStatus?: string } | null>(null);
+    const [trackingInfo, setTrackingInfo] = useState<{ number: string; isOrderNumber: boolean; carrier?: string; orderStatus?: string } | null>(null);
 
     const allShipments =
         order.shipments && order.shipments.length > 0
@@ -139,7 +139,7 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => setTrackingInfo({ number: shipment.awbNumber || order.orderNumber, carrier: shipment.provider || shipment.carrier, orderStatus: shipment.status || order.status })}
+                                        onClick={() => setTrackingInfo({ number: shipment.awbNumber || order.orderNumber, isOrderNumber: !shipment.awbNumber, carrier: shipment.provider || shipment.carrier, orderStatus: shipment.status || order.status })}
                                         className="w-full py-4 bg-black text-white text-xs font-medium tracking-wide rounded-xl hover:bg-gray-800 transition-all"
                                     >
                                         Track shipment
@@ -152,7 +152,7 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
             </div>
 
             {trackingInfo && (
-                <OrderTracking storeId={storeId} trackingNumber={trackingInfo.number} provider={trackingInfo.carrier} orderStatus={trackingInfo.orderStatus} onClose={() => setTrackingInfo(null)} />
+                <OrderTracking storeId={storeId} trackingNumber={trackingInfo.number} isOrderNumber={trackingInfo.isOrderNumber} provider={trackingInfo.carrier} orderStatus={trackingInfo.orderStatus} onClose={() => setTrackingInfo(null)} />
             )}
         </div>
     );

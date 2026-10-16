@@ -33,6 +33,7 @@ import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, t
 import SelectAddressPanel from "./SelectAddressPanel";
 import { ADDRESS_REQUIRED_MESSAGE, addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
 import type { ShipmentProvider } from "@/lib/shipment-provider";
+import { orderHref } from "@/lib/order-url";
 
 interface CheckoutViewProps {
     storeId: string;
@@ -233,7 +234,7 @@ export default function CheckoutView({
                 })
             ).unwrap();
             await dispatch(clearCart({ storeId }));
-            router.push(`/orders/${order.orderNumber}`);
+            router.push(orderHref(order.orderNumber));
         } catch (error) {
             setOrderError(typeof error === "string" ? error : "Order creation failed. Please contact support.");
         } finally {

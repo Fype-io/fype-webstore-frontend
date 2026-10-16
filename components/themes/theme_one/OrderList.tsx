@@ -137,7 +137,7 @@ export default function OrderList({ storeId }: OrderListProps) {
 
                             <div className="mt-8 pt-6 border-t border-gray-50">
                                 <Link
-                                    href={orderHref(order.orderNumber)}
+                                    href={orderHref(order)}
                                     className="inline-flex items-center gap-2 px-8 py-3 bg-black text-white text-[10px] font-semibold tracking-[0.05em] rounded-lg hover:bg-gray-800 transition-all"
                                 >
                                     <span className="material-symbols-outlined text-base">local_shipping</span>

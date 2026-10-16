@@ -8,9 +8,18 @@ export function orderSegment(orderNumber: string): string {
     return encodeURIComponent(orderNumber);
 }
 
-/** The storefront's order detail page for an order. */
-export function orderHref(orderNumber: string): string {
-    return `/orders/${orderSegment(orderNumber)}`;
+export interface OrderLinkTarget {
+    orderId?: string | null;
+    orderNumber: string;
+}
+
+/**
+ * The storefront's order detail page: /orders/<orderId>. The id is a UUID, so the
+ * URL stays clean (no %23) whatever prefix the store gives its order numbers. The
+ * API and the detail page also accept the order number, used if the id is missing.
+ */
+export function orderHref(order: OrderLinkTarget): string {
+    return `/orders/${orderSegment(order.orderId || order.orderNumber)}`;
 }
 
 /**

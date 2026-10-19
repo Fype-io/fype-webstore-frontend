@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchOrders } from "@/redux/slices/userSlice";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { currencyLocale, currencyPrefix } from "@/lib/currency";
+import { orderHref } from "@/lib/order-url";
 
 interface OrderListProps {
     storeId: string;
@@ -113,7 +114,7 @@ export default function OrderList({ storeId }: OrderListProps) {
                                     </div>
                                 </div>
                                 <Link
-                                    href={`/orders/${order.orderNumber}`}
+                                    href={orderHref(order)}
                                     className="shrink-0 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full border border-gray-200 bg-white text-gray-600 group-hover:bg-black group-hover:border-black group-hover:text-white transition-all"
                                     aria-label="View order"
                                 >

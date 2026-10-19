@@ -1,4 +1,5 @@
 import { getApi } from "./client-api";
+import { orderSegment } from "./order-url";
 import type { ApiResponse } from "@/types/api";
 import type { TrackingDetails, TrackingEvent } from "@/redux/slices/userSlice";
 
@@ -36,7 +37,7 @@ interface TrackOrderResponse {
 export async function trackShipment(storeId: string, orderId: string, provider?: string): Promise<TrackingDetails | null> {
     try {
         const response = await getApi<ApiResponse<TrackOrderResponse>>(
-            `/commerce/${storeId}/orders/${orderId}/track${provider ? `?provider=${provider}` : ""}`,
+            `/commerce/${storeId}/orders/${orderSegment(orderId)}/track${provider ? `?provider=${encodeURIComponent(provider)}` : ""}`,
             { withCredentials: true }
         );
 

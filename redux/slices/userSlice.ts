@@ -14,6 +14,7 @@ import {
 } from "@/lib/client-api";
 import type { ApiResponse } from "@/types/api";
 import { trackShipment } from "@/lib/tracking-api";
+import { orderSegment } from "@/lib/order-url";
 import { orderErrorMessage } from "@/lib/checkout-errors";
 
 // Trimmed port of the SPA's userSlice.ts — auth + cart + guest cart + wishlist
@@ -731,7 +732,7 @@ export const fetchOrderById = createAsyncThunk(
     "user/fetchOrderById",
     async ({ storeId, orderId }: { storeId: string; orderId: string }, { rejectWithValue }) => {
         try {
-            const response = await getApi<ApiResponse<{ order: Order }>>(`/commerce/${storeId}/orders/${orderId}`, {
+            const response = await getApi<ApiResponse<{ order: Order }>>(`/commerce/${storeId}/orders/${orderSegment(orderId)}`, {
                 withCredentials: true,
             });
             return response.data.data.order;
@@ -746,7 +747,7 @@ export const cancelOrder = createAsyncThunk(
     async ({ storeId, orderId, reason }: { storeId: string; orderId: string; reason: string }, { rejectWithValue }) => {
         try {
             const response = await postApi<ApiResponse<{ order: Order }>>(
-                `/commerce/${storeId}/orders/${orderId}/cancel`,
+                `/commerce/${storeId}/orders/${orderSegment(orderId)}/cancel`,
                 { reason },
                 { withCredentials: true }
             );

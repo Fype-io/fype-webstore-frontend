@@ -4,6 +4,7 @@ import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation } from "@/
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import { decodeOrderParam } from "@/lib/order-url";
 
 async function getPageData() {
     const headersList = await headers();
@@ -29,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
-    const { orderId } = await params;
+    const orderId = decodeOrderParam((await params).orderId);
     const data = await getPageData();
 
     if (!data || !data.theme) return <ShopNotFound />;

@@ -42,3 +42,17 @@ describe("DeliveryAddressCard - missing address validation", () => {
         expect(screen.getByText(/123 Main St/)).toBeInTheDocument();
     });
 });
+
+describe("DeliveryAddressCard - not serviceable", () => {
+    it("names the pincode for an address that has one", () => {
+        renderCard({ addresses: [ADDRESS], selected: ADDRESS, notServiceable: true });
+        expect(screen.getByText(/This pincode is not serviceable/)).toBeInTheDocument();
+    });
+
+    it("talks about the area for a UAE address, which has no pincode", () => {
+        const uae = { ...ADDRESS, city: "Al Barsha", state: "Dubai", country: "AE", postalCode: "" } as unknown as Address;
+        renderCard({ addresses: [uae], selected: uae, notServiceable: true });
+        expect(screen.getByText(/We don't deliver to this area yet/)).toBeInTheDocument();
+        expect(screen.queryByText(/pincode/i)).not.toBeInTheDocument();
+    });
+});

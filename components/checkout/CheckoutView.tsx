@@ -32,7 +32,7 @@ import PaymentSummaryCard from "./PaymentSummaryCard";
 import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, type StripeExpressConfig, type WalletAvailability } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
 import { ADDRESS_REQUIRED_MESSAGE, addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
-import type { ShipmentProvider } from "@/lib/shipment-provider";
+import { defaultAddressCountry, quotesByCity, type ShipmentProvider } from "@/lib/shipment-provider";
 import { orderHref } from "@/lib/order-url";
 
 interface CheckoutViewProps {
@@ -178,8 +178,28 @@ export default function CheckoutView({
         }
     };
 
+    // Jeebly (UAE): quoted by the address's city, no pincode and no TAT lookup;
+    // the backend estimates delivery from the pickup date.
+    const fetchCityShippingRate = async () => {
+        if (!selectedAddress || !cart?.items.length) return;
+        const { city, state, country } = selectedAddress;
+        const key = `city:${city}|${state}|${country}`;
+        const cartHash = getCartHash(cart.items);
+        if (lastCallRef.current.cartHash === cartHash && lastCallRef.current.pincode === key) return;
+        lastCallRef.current = { cartHash, pincode: key };
+        setIsCalculatingShipping(true);
+        try {
+            const rate = await calculateShippingRate(storeId, "", cart.items, shipmentProvider, { city, state, country });
+            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, reason: rate.reason });
+            else setShipmentState({ serviceable: false, deliveryCharge: null, reason: "rate_api_failed" });
+        } finally {
+            setIsCalculatingShipping(false);
+        }
+    };
+
     const fetchShippingAndTAT = async () => {
         if (!selectedAddress || !cart?.items.length) return;
+        if (quotesByCity(shipmentProvider)) return fetchCityShippingRate();
         const pincode = selectedAddress.postalCode;
         const cartHash = getCartHash(cart.items);
         if (lastCallRef.current.cartHash === cartHash && lastCallRef.current.pincode === pincode) return;
@@ -207,8 +227,9 @@ export default function CheckoutView({
         } else if (hasManualShipping && cart?.items.length) {
             fetchManualShippingRate();
         }
+        // City, state and country too: UAE addresses (Jeebly) have no postal code to change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hasDeliveryApp, hasManualShipping, selectedAddress?.postalCode, cart?.items]);
+    }, [hasDeliveryApp, hasManualShipping, selectedAddress?.postalCode, selectedAddress?.city, selectedAddress?.state, selectedAddress?.country, cart?.items]);
 
     const handleCreateOrder = async (paymentMethod: string, gateway?: string, gatewayRef?: Record<string, unknown>) => {
         if (!cart || !selectedAddress) return;
@@ -599,6 +620,7 @@ export default function CheckoutView({
             saving={savingAddress}
             onBack={() => setView(editingAddress ? "select-address" : "checkout")}
             onSave={handleSaveAddress}
+            {...(defaultAddressCountry(shipmentProvider) ? { defaultCountry: defaultAddressCountry(shipmentProvider) } : {})}
         />
     );
 

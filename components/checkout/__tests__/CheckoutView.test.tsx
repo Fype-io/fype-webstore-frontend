@@ -11,7 +11,7 @@ import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeAdapter";
 import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
 import { fetchStockForCartItems } from "@/lib/stock-api";
-import { calculateShippingRate } from "@/lib/shipping-api";
+import { calculateShippingRate, getExpectedTAT } from "@/lib/shipping-api";
 import { deleteApi, getApi, postApi, putApi } from "@/lib/client-api";
 import { AxiosError, type AxiosResponse } from "axios";
 
@@ -661,5 +661,63 @@ describe("CheckoutView - Google Pay / Apple Pay as payment methods", () => {
         act(() => walletProps.button!.onError("The price changed. Please review your order and try again."));
 
         expect(await screen.findByText("The price changed. Please review your order and try again.")).toBeInTheDocument();
+    });
+});
+
+// A UAE store shipping with Jeebly: addresses have no postal code, so the rate
+// is asked for by city, state and country, and there's no TAT lookup (the
+// backend estimates delivery from the pickup date).
+describe("CheckoutView - Jeebly (quoted by city)", () => {
+    const UAE_ADDRESS = {
+        addressId: "addr-ae",
+        firstName: "Aisha",
+        lastName: "Test",
+        phoneNumber: "+971505186403",
+        addressLine1: "Villa 43",
+        addressLine2: "Street 12",
+        city: "Al Barsha",
+        state: "Dubai",
+        country: "AE",
+        postalCode: "",
+        isDefault: true,
+    };
+    const addressesResponse = (address: object) => ({ data: { success: true, data: { addresses: [address] } } }) as unknown as AxiosResponse;
+    const rate = (r: object) => r as Awaited<ReturnType<typeof calculateShippingRate>>;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe);
+        vi.mocked(getApi).mockResolvedValue(addressesResponse(UAE_ADDRESS));
+    });
+    afterEach(() => {
+        // Back to the Indian address the rest of this file uses.
+        vi.mocked(getApi).mockResolvedValue(addressesResponse(TEST_ADDRESS));
+        vi.mocked(calculateShippingRate).mockResolvedValue(null);
+    });
+
+    it("asks for the rate by city, without a pincode or a TAT lookup", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly" });
+
+        await waitFor(() =>
+            expect(calculateShippingRate).toHaveBeenCalledWith("store-1", "", expect.any(Array), "jeebly", { city: "Al Barsha", state: "Dubai", country: "AE" })
+        );
+        expect(getExpectedTAT).not.toHaveBeenCalled();
+        expect(screen.queryByText(/not serviceable|don't deliver/)).not.toBeInTheDocument();
+        // Jeebly collects cash, so COD is offered with no gateway.
+        expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
+    });
+
+    it("tells the shopper when Jeebly doesn't deliver to the address's area", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(
+            rate({ serviceable: false, deliveryCharge: null, estimatedDays: null, reason: "not_serviceable", source: "api" })
+        );
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly" });
+
+        expect(await screen.findByText(/We don't deliver to this area yet/)).toBeInTheDocument();
     });
 });

@@ -11,9 +11,11 @@ interface AddressListProps {
     selectionMode?: boolean;
     selectedAddressId?: string;
     onAddressSelect?: (address: Address) => void;
+    // ISO country a new address starts in (the store's courier decides, see lib/shipment-provider).
+    defaultCountry?: string | undefined;
 }
 
-export default function AddressList({ storeId, selectionMode = false, selectedAddressId, onAddressSelect }: AddressListProps) {
+export default function AddressList({ storeId, selectionMode = false, selectedAddressId, onAddressSelect, defaultCountry }: AddressListProps) {
     const dispatch = useAppDispatch();
     const { addresses, addressesLoading } = useAppSelector((state) => state.user);
 
@@ -83,7 +85,7 @@ export default function AddressList({ storeId, selectionMode = false, selectedAd
                         Add Delivery Address
                     </button>
                 </div>
-                <AddressFormModal open={createOpen} saving={saving} onClose={() => setCreateOpen(false)} onSave={handleAddAddress} />
+                <AddressFormModal open={createOpen} saving={saving} onClose={() => setCreateOpen(false)} onSave={handleAddAddress} defaultCountry={defaultCountry} />
             </div>
         );
     }
@@ -120,7 +122,7 @@ export default function AddressList({ storeId, selectionMode = false, selectedAd
                 </div>
             )}
 
-            <AddressFormModal open={createOpen} saving={saving} onClose={() => setCreateOpen(false)} onSave={handleAddAddress} />
+            <AddressFormModal open={createOpen} saving={saving} onClose={() => setCreateOpen(false)} onSave={handleAddAddress} defaultCountry={defaultCountry} />
             <AddressFormModal
                 open={!!editingAddress}
                 initial={editingAddress}

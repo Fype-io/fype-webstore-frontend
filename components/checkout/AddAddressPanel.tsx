@@ -28,13 +28,17 @@ interface AddAddressPanelProps {
     saving?: boolean;
     onBack: () => void;
     onSave: (address: Omit<Address, "_id" | "addressId">) => Promise<void>;
+    // ISO country a new address starts in (e.g. "AE" for a Jeebly store); an
+    // address being edited keeps its own.
+    defaultCountry?: string;
 }
 
-export default function AddAddressPanel({ initial, saving, onBack, onSave }: AddAddressPanelProps) {
+export default function AddAddressPanel({ initial, saving, onBack, onSave, defaultCountry }: AddAddressPanelProps) {
+    const startCountry = toCountryIso(initial?.country || defaultCountry || "");
     const [house, setHouse] = useState(initial?.addressLine1 || "");
     const [area, setArea] = useState(initial?.addressLine2 || "");
-    const [country, setCountry] = useState(toCountryIso(initial?.country || ""));
-    const [state, setState] = useState(() => toStateIso(toCountryIso(initial?.country || ""), initial?.state || ""));
+    const [country, setCountry] = useState(startCountry);
+    const [state, setState] = useState(() => toStateIso(startCountry, initial?.state || ""));
     const [city, setCity] = useState(initial?.city || "");
     const [pincode, setPincode] = useState(initial?.postalCode || "");
     const [name, setName] = useState([initial?.firstName, initial?.lastName].filter(Boolean).join(" "));
@@ -47,13 +51,15 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
     const [locationError, setLocationError] = useState<string | null>(null);
 
     const availableStates = country ? State.getStatesOfCountry(country) : [];
+    // UAE addresses have no postal code (the backend accepts them without one).
+    const pincodeOptional = country === "AE";
     const canSave =
         house.trim() !== "" &&
         area.trim() !== "" &&
         country.trim() !== "" &&
         (availableStates.length === 0 || state.trim() !== "") &&
         city.trim() !== "" &&
-        pincode.trim() !== "" &&
+        (pincodeOptional || pincode.trim() !== "") &&
         name.trim() !== "" &&
         isPhoneValid;
 
@@ -197,7 +203,7 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
                     <input
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
-                        placeholder="Pincode"
+                        placeholder={pincodeOptional ? "Postal code (optional)" : "Pincode"}
                         className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
                     />
                 </div>

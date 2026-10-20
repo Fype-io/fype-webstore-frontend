@@ -10,9 +10,10 @@ interface AddressFormModalProps {
     saving?: boolean;
     onClose: () => void;
     onSave: (address: Omit<Address, "_id" | "addressId">) => Promise<void>;
+    defaultCountry?: string | undefined;
 }
 
-export default function AddressFormModal({ open, initial = null, saving, onClose, onSave }: AddressFormModalProps) {
+export default function AddressFormModal({ open, initial = null, saving, onClose, onSave, defaultCountry }: AddressFormModalProps) {
     useEffect(() => {
         if (!open) return;
         const html = document.documentElement;
@@ -33,7 +34,14 @@ export default function AddressFormModal({ open, initial = null, saving, onClose
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6">
             <button type="button" aria-label="Close" className="absolute inset-0 bg-black/50" onClick={onClose} />
             <div className="relative w-full sm:max-w-[480px] h-[min(92vh,800px)] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-black">
-                <AddAddressPanel key={initial?.addressId ?? "new"} initial={initial} saving={saving} onBack={onClose} onSave={onSave} />
+                <AddAddressPanel
+                    key={initial?.addressId ?? "new"}
+                    initial={initial}
+                    saving={saving}
+                    onBack={onClose}
+                    onSave={onSave}
+                    {...(defaultCountry ? { defaultCountry } : {})}
+                />
             </div>
         </div>
     );

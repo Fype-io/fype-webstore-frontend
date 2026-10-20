@@ -44,11 +44,19 @@ export async function checkPincodeServiceability(
     }
 }
 
+/** Where a city-based courier (Jeebly) delivers: the address's city, state (emirate) and country. */
+export interface ShippingDestination {
+    city?: string;
+    state?: string;
+    country?: string;
+}
+
 export async function calculateShippingRate(
     storeId: string,
     destinationPincode: string,
     items: CartItem[],
-    provider?: string
+    provider?: string,
+    destination?: ShippingDestination
 ): Promise<CalculateShippingRateResponse | null> {
     try {
         const itemsPayload = items.map((item) => ({
@@ -63,6 +71,7 @@ export async function calculateShippingRate(
                 destinationPincode,
                 items: itemsPayload,
                 ...(provider ? { provider } : {}),
+                ...(destination ? { destination } : {}),
             },
             { withCredentials: true }
         );

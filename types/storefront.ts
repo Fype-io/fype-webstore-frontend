@@ -130,6 +130,8 @@ export interface ShopIdentity {
             dtdc?: { enabled?: boolean };
             delhivery?: { enabled?: boolean };
             shiprocket?: { enabled?: boolean };
+            // UAE courier: delivers by city, no pincode.
+            jeebly?: { enabled?: boolean; deliveryType?: "Same Day" | "Next Day" };
             manualShipping?: { global?: boolean; shippingRate?: number };
         };
         seo?: {

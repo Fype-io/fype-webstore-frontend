@@ -4,6 +4,7 @@ import { getApiBaseUrl, getShopByDomain, getTheme, getPagesByLocation } from "@/
 import { loadTheme, resolveThemeSlug } from "@/lib/theme";
 import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost } from "@/lib/request-host";
+import { defaultAddressCountry, resolveShipmentProvider } from "@/lib/shipment-provider";
 
 async function getPageData() {
     const headersList = await headers();
@@ -61,7 +62,7 @@ export default async function AddressesPage() {
             />
 
             <AccountLayout title="My Addresses" storeId={shop.shopId}>
-                <AddressList storeId={shop.shopId} />
+                <AddressList storeId={shop.shopId} defaultCountry={defaultAddressCountry(resolveShipmentProvider(shop))} />
             </AccountLayout>
 
             <Footer footer={theme.footer} navbar={theme.navbar} footerText={theme.footerText} shopName={shop.shopName} footerPages={footerPages} themeConfig={theme.themeConfig} />

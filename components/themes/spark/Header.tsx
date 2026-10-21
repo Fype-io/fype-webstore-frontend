@@ -4,7 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ShoppingBag } from "lucide-react";
+import { Search, ShoppingBag, User } from "lucide-react";
 import type { SparkAnnouncementBarBlock, SparkHeaderSettings } from "./sparkConfig";
 import { useAppSelector } from "@/redux/hooks";
 import { cartTotalCount, useSparkCart } from "./SparkCartContext";
@@ -228,10 +228,14 @@ export default function Header({
         </nav>
     );
 
+    // The three icons come from one set (lucide, 20px, 1.5 stroke) and sit in the same fixed 24px centred box.
+    // They used to mix Material Symbols glyphs (baseline-aligned in a 30px line box) with an SVG, which left
+    // the bag about 3px lower than search and person.
+    const iconButtonClass = "relative inline-flex h-6 w-6 items-center justify-center hover:opacity-70 transition-opacity";
     const iconLinks = (
         <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-            <Link href="/products" className="hover:opacity-70 transition-opacity">
-                <span className="material-symbols-outlined text-xl">search</span>
+            <Link href="/products" className={iconButtonClass} aria-label="Search">
+                <Search size={20} strokeWidth={1.5} />
             </Link>
             <button
                 type="button"
@@ -240,15 +244,15 @@ export default function Header({
                     if (isAuthenticated) router.push("/accounts");
                     else setAuthOpen(true);
                 }}
-                className="hover:opacity-70 transition-opacity"
+                className={iconButtonClass}
                 aria-label={isAuthenticated ? "Account" : "Sign in"}
             >
-                <span className="material-symbols-outlined text-xl">person</span>
+                <User size={20} strokeWidth={1.5} />
             </button>
-            <button type="button" onClick={openCart} className="hover:opacity-70 transition-opacity relative" aria-label="Open cart">
+            <button type="button" onClick={openCart} className={iconButtonClass} aria-label="Open cart">
                 <ShoppingBag size={20} strokeWidth={1.5} />
                 {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#111] text-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#111] text-white text-[10px] font-bold flex items-center justify-center rounded-full">
                         {count}
                     </span>
                 )}

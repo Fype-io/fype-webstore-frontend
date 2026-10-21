@@ -21,6 +21,7 @@ import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 import { productHref } from "@/lib/product-url";
 import { galleryImages, initialSelectedOptions, syncVariantParam } from "@/lib/variant-selection";
+import { canBuy, productContinueSelling, variantContinueSelling } from "@/lib/stock";
 
 const NEW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const HIGHLIGHT_ICONS = [Truck, RefreshCw, Shield];
@@ -166,7 +167,6 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     const displayData = useMemo(() => {
         if (!product) return { price: 0, compareAtPrice: 0, taxApplied: false, taxRate: undefined, images: [] as string[], available: false };
 
-        const continueSelling = product.inventory?.continueSelling ?? product.continueSellWhenOutOfStock ?? false;
         if (hasVariants && selectedVariant) {
             return {
                 price: selectedVariant.price,
@@ -174,7 +174,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                 taxApplied: product.price.taxApplied,
                 taxRate: product.price.taxRate,
                 images: galleryImages(product.images, selectedVariant.image, variantChosen),
-                available: (selectedVariant.inventory?.available ?? 0) > 0 || continueSelling,
+                available: canBuy({ available: selectedVariant.inventory?.available, trackQuantity: selectedVariant.inventory?.trackQuantity, continueSelling: variantContinueSelling(selectedVariant, product) }),
             };
         }
         return {
@@ -183,7 +183,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
             taxApplied: product.price.taxApplied,
             taxRate: product.price.taxRate,
             images: product.images ?? [],
-            available: (product.inventory?.available ?? 0) > 0 || continueSelling,
+            available: canBuy({ available: product.inventory?.available, trackQuantity: product.inventory?.trackQuantity, continueSelling: productContinueSelling(product) }),
         };
     }, [hasVariants, selectedVariant, product, variantChosen]);
 

@@ -230,6 +230,8 @@ export interface ProductVariant {
     image: string[];
     available: boolean;
     inventory: { available: number; trackQuantity: boolean };
+    /** The variant's own oversell switch (the backend already resolves it against the product's). */
+    continueSelling?: boolean;
 }
 
 export interface VariantOptions {
@@ -245,6 +247,8 @@ export interface ProductDetail {
     images: string[];
     hasVariants: boolean;
     continueSellWhenOutOfStock: boolean;
+    /** Product-level oversell switch as the product API sends it (top level, also for products with variants). */
+    continueSelling?: boolean;
     skuCode: string;
     barCode: string;
     productWeight?: number;
@@ -261,6 +265,7 @@ export interface ProductDetail {
     };
     inventory: {
         available: number;
+        trackQuantity?: boolean;
         continueSelling?: boolean;
     } | null;
     createdAt?: string;

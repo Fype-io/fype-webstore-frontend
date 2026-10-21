@@ -1,5 +1,6 @@
 import { getApi } from "./client-api";
 import type { CartItem } from "@/redux/slices/userSlice";
+import { productContinueSelling, variantContinueSelling } from "./stock";
 
 interface ProductDetailStockResponse {
     success: boolean;
@@ -9,8 +10,8 @@ interface ProductDetailStockResponse {
                 productId: string;
                 hasVariants: boolean;
                 continueSelling?: boolean;
-                inventory: { available: number; trackQuantity?: boolean } | null;
-                variants?: Array<{ variantId: string; inventory: { available: number; trackQuantity?: boolean } }>;
+                inventory: { available: number; trackQuantity?: boolean; continueSelling?: boolean } | null;
+                variants?: Array<{ variantId: string; continueSelling?: boolean; inventory: { available: number; trackQuantity?: boolean } }>;
             };
         };
     };
@@ -21,7 +22,7 @@ interface ProductDetailStockResponse {
  *
  * Returns a map keyed by `productId` (simple) or `productId:variantId` (variant).
  * - `number` = known available quantity
- * - `null`   = unknown / fetch failed / continueSelling enabled → caller should treat as "in stock"
+ * - `null`   = unknown / fetch failed / quantity not tracked / continueSelling enabled → caller should treat as "in stock"
  */
 export async function fetchStockForCartItems(storeId: string, items: CartItem[]): Promise<Record<string, number | null>> {
     if (!items.length) return {};
@@ -51,20 +52,12 @@ export async function fetchStockForCartItems(storeId: string, items: CartItem[])
         const product = result.value.data.data.data.product;
         if (!product) return;
 
-        if (product.continueSelling) {
-            items
-                .filter((i) => i.productId === productId)
-                .forEach((i) => {
-                    const key = i.variantId ? `${i.productId}:${i.variantId}` : i.productId;
-                    stockMap[key] = null;
-                });
-            return;
-        }
-
         if (product.hasVariants && product.variants) {
             for (const variant of product.variants) {
                 const key = `${productId}:${variant.variantId}`;
-                stockMap[key] = variant.inventory?.available ?? null;
+                // Not tracked, or sold past zero (the variant's own switch, else the product's): no limit to enforce.
+                const unlimited = variant.inventory?.trackQuantity === false || variantContinueSelling(variant, product);
+                stockMap[key] = unlimited ? null : (variant.inventory?.available ?? null);
             }
             items
                 .filter((i) => i.productId === productId && i.variantId)
@@ -73,7 +66,8 @@ export async function fetchStockForCartItems(storeId: string, items: CartItem[])
                     if (!(key in stockMap)) stockMap[key] = null;
                 });
         } else {
-            stockMap[productId] = product.inventory?.available ?? null;
+            const unlimited = product.inventory?.trackQuantity === false || productContinueSelling(product);
+            stockMap[productId] = unlimited ? null : (product.inventory?.available ?? null);
         }
     });
 

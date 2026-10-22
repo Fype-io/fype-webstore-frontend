@@ -19,6 +19,8 @@ export interface PaymentMethodOption {
     extra?: ReactNode;
     /** Listed but can't be picked (e.g. a wallet this device can't use); the subtitle says why. */
     disabled?: boolean;
+    /** What this method charges when it differs from the order total (cash on delivery adds the COD charge). */
+    amount?: number;
 }
 
 export interface GatewayOrderRef {

@@ -131,7 +131,8 @@ export interface ShopIdentity {
             delhivery?: { enabled?: boolean };
             shiprocket?: { enabled?: boolean };
             // UAE courier: delivers by city, no pincode.
-            jeebly?: { enabled?: boolean; deliveryType?: "Same Day" | "Next Day" };
+            // codCharge: added to a cash-on-delivery order's total (0 or missing: none).
+            jeebly?: { enabled?: boolean; deliveryType?: "Same Day" | "Next Day"; codCharge?: number };
             manualShipping?: { global?: boolean; shippingRate?: number };
         };
         seo?: {

@@ -25,12 +25,12 @@ export function toStateIso(countryIso: string, isoOrName: string): string {
 }
 
 // UAE addresses (Jeebly books by emirate and area): the State list is the
-// emirates, labelled "City", and the City field holds the area. Stored as
+// emirates, labelled "Emirate", and the City field holds the area. Stored as
 // before (state = emirate, city = area), so nothing reading addresses changes.
 const UAE_PLACEHOLDERS = {
     house: "Flat or villa no., building name",
     street: "Street and a landmark",
-    state: "City",
+    state: "Emirate",
     city: "Area",
 };
 const UAE_HINTS: Record<"house" | "street" | "city", string> = {

@@ -52,10 +52,10 @@ describe("AddAddressPanel - starting country", () => {
     });
 });
 
-describe("AddAddressPanel - UAE layout (emirate as City, area as Area)", () => {
-    it("labels the emirate list City and the city field Area, with UAE hints for line 1 and 2", () => {
+describe("AddAddressPanel - UAE layout (Emirate list, area as Area)", () => {
+    it("labels the emirate list Emirate and the city field Area, with UAE hints for line 1 and 2", () => {
         renderPanel({ defaultCountry: "AE" });
-        expect(screen.getByPlaceholderText("City")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Emirate")).toBeInTheDocument();
         expect(screen.getByPlaceholderText("Area")).toBeInTheDocument();
         expect(screen.getByPlaceholderText("Flat or villa no., building name")).toBeInTheDocument();
         expect(screen.getByPlaceholderText("Street and a landmark")).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("AddAddressPanel - UAE layout (emirate as City, area as Area)", () => {
     it('lists the 7 emirates without "Emirate"', async () => {
         const user = userEvent.setup();
         renderPanel({ defaultCountry: "AE" });
-        await user.click(screen.getByPlaceholderText("City"));
+        await user.click(screen.getByPlaceholderText("Emirate"));
         for (const emirate of ["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras al-Khaimah", "Sharjah", "Umm al-Quwain"]) {
             expect(screen.getByText(emirate)).toBeInTheDocument();
         }
@@ -110,7 +110,7 @@ describe("AddAddressPanel - Use current location", () => {
         await user.click(screen.getByRole("button", { name: /use current location/i }));
 
         await waitFor(() => expect(screen.getByPlaceholderText("Area")).toHaveValue("Al Barsha"));
-        expect(screen.getByPlaceholderText("City")).toHaveValue("Dubai");
+        expect(screen.getByPlaceholderText("Emirate")).toHaveValue("Dubai");
         expect(screen.getByPlaceholderText("Street and a landmark")).toHaveValue("");
     });
 
@@ -123,7 +123,7 @@ describe("AddAddressPanel - Use current location", () => {
 
         await user.click(screen.getByRole("button", { name: /use current location/i }));
 
-        await waitFor(() => expect(screen.getByPlaceholderText("City")).toHaveValue("Abu Dhabi"));
+        await waitFor(() => expect(screen.getByPlaceholderText("Emirate")).toHaveValue("Abu Dhabi"));
         expect(screen.getByPlaceholderText("Area")).toHaveValue("Ruwais");
     });
 

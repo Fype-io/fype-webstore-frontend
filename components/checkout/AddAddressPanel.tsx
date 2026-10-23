@@ -109,7 +109,7 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave, defau
                     if (result.country) setCountry(iso);
                     if (result.state) setState(toStateIso(iso, result.state));
                     if (iso === "AE") {
-                        // The area (e.g. "Al Barsha") goes in Area; the emirate is the City picked above.
+                        // The area (e.g. "Al Barsha") goes in Area; the emirate was picked above.
                         if (result.area || result.city) setCity(result.area || result.city);
                     } else {
                         if (result.city) setCity(result.city);

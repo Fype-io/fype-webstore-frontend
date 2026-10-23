@@ -8,6 +8,7 @@ import { reverseGeocode } from "@/lib/reverseGeocode";
 import { splitName } from "./checkoutUtils";
 import { countrySelectOptions, toCountryIso } from "./ui/countries";
 import { PhoneInput } from "./ui/PhoneInput";
+import { PlaceSearchSelect } from "./ui/PlaceSearchSelect";
 import { SearchableSelect } from "./ui/SearchableSelect";
 import CheckoutHeader from "./CheckoutHeader";
 
@@ -227,13 +228,17 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave, defau
                 </div>
                 <div className="flex gap-4">
                     <div className="w-full flex flex-col gap-4 sm:gap-6">
-                        <input
+                        {/* Picked from Google's list (UAE: the area in the emirate; else the state's cities). */}
+                        <PlaceSearchSelect
+                            kind={isUae ? "area" : "city"}
+                            country={country}
+                            state={state}
                             value={city}
-                            onChange={(e) => setCity(e.target.value)}
+                            onChange={setCity}
                             onFocus={() => setFocused("city")}
                             onBlur={() => setFocused(null)}
                             placeholder={isUae ? UAE_PLACEHOLDERS.city : "City"}
-                            className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
+                            disabled={availableStates.length > 0 && !state}
                         />
                         {hint("city")}
                     </div>

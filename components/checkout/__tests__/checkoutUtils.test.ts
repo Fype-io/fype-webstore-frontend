@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { codAvailability, formatStoreMoney } from "../checkoutUtils";
+import { codAvailability, codChargeOf, formatStoreMoney } from "../checkoutUtils";
 import { defaultAddressCountry, providerSupportsCod, quotesByCity, resolveShipmentProvider } from "@/lib/shipment-provider";
 
 describe("codAvailability", () => {
@@ -74,5 +74,24 @@ describe("formatStoreMoney", () => {
         expect(formatStoreMoney(25.5, "USD")).toBe("$25.5");
         expect(formatStoreMoney(100, "AED")).toMatch(/^AED\s100$/);
         expect(formatStoreMoney(500, null)).toBe("₹500");
+    });
+});
+
+describe("codChargeOf", () => {
+    const shop = (codCharge?: unknown) => ({ settings: { logistics: { jeebly: { codCharge } } } }) as never;
+
+    it("is Jeebly's COD charge per order", () => {
+        expect(codChargeOf(shop(5), "jeebly")).toBe(5);
+    });
+
+    it.each([
+        ["another courier", shop(5), "dtdc"],
+        ["no charge set", shop(undefined), "jeebly"],
+        ["a zero charge", shop(0), "jeebly"],
+        ["a negative charge", shop(-1), "jeebly"],
+        ["text", shop("abc"), "jeebly"],
+        ["no shop", null, "jeebly"],
+    ])("is 0 for %s", (_label, s, provider) => {
+        expect(codChargeOf(s, provider)).toBe(0);
     });
 });

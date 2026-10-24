@@ -52,6 +52,8 @@ interface CheckoutViewProps {
     currency?: string;
     /** The store's cash-on-delivery setting (public settings payment.cod). */
     cod?: CodSetting;
+    /** Added to the total when paying cash on delivery (codChargeOf); 0 for none. */
+    codCharge?: number;
 }
 
 const getCartHash = (items: { productId: string; variantId?: string; quantity: number }[]) =>
@@ -71,6 +73,7 @@ export default function CheckoutView({
     stripeExpress,
     currency,
     cod,
+    codCharge = 0,
 }: CheckoutViewProps) {
     const dispatch = useAppDispatch();
     const router = useRouter();
@@ -145,7 +148,13 @@ export default function CheckoutView({
         .flatMap((a) => (a.key === "stripe" ? [...a.availableMethods, ...walletMethods] : a.availableMethods));
     // COD isn't owned by any gateway adapter - kept as a standalone entry,
     // same as before multi-gateway support, shown only when no gateway is active.
-    const codMethod: PaymentMethodOption = { id: "cod", gatewayKey: "manual", title: "Cash on delivery", subtitle: "Pay with cash" };
+    const codMethod: PaymentMethodOption = {
+        id: "cod",
+        gatewayKey: "manual",
+        title: "Cash on delivery",
+        subtitle: "Pay with cash",
+        ...(codCharge > 0 ? { amount: orderTotal + codCharge } : {}),
+    };
     const availableMethods: PaymentMethodOption[] = showCod ? [...gatewayMethods, codMethod] : gatewayMethods;
     const isPaymentLoading = activeAdapters.some((a) => a.isLoading);
     const methodToGateway = new Map(availableMethods.map((m) => [m.id, m.gatewayKey]));
@@ -248,7 +257,8 @@ export default function CheckoutView({
                         subtotal: cart.subtotal,
                         tax: cart.tax,
                         shipping: shippingCost,
-                        total: (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0),
+                        // The backend prices the order itself; COD adds the store's COD charge there too.
+                        total: (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0) + (paymentMethod === "cod" ? codCharge : 0),
                         estimatedDelivery: tatInfo?.deliveryDate || null,
                         ...(gateway && gatewayRef ? { gateway, gatewayRef } : {}),
                     },
@@ -459,6 +469,8 @@ export default function CheckoutView({
     }
 
     const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
+    // Cash on delivery chosen (or the only way to pay): the summary shows the store's COD charge.
+    const codFee = codOnly || selectedPaymentMethod === "cod" ? codCharge : 0;
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
     // The wallet rows need Stripe.js, the store currency and a positive total to learn
     // whether this device can use them; paying also needs a signed-in shopper and an address.
@@ -591,7 +603,8 @@ export default function CheckoutView({
                             taxLabel={cart.taxLabel}
                             shipping={shippingDisplay}
                             shippingCalculating={isCalculatingShipping}
-                            total={total}
+                            codCharge={codFee}
+                            total={total + codFee}
                         />
                         {walletButton ? (
                             // A chosen wallet pays from Stripe's own button, in place of "Place order".

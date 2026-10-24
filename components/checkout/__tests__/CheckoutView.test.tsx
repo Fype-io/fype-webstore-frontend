@@ -720,4 +720,41 @@ describe("CheckoutView - Jeebly (quoted by city)", () => {
 
         expect(await screen.findByText(/We don't deliver to this area yet/)).toBeInTheDocument();
     });
+
+    describe("the store's COD charge", () => {
+        const summaryTotal = () => screen.getByText("Payment summary").closest("section")!.textContent;
+
+        it("COD as the only way to pay: the summary adds the charge to the total", async () => {
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: [], cod: { enabled: true, minOrderValue: null }, codCharge: 5 });
+
+            expect(await screen.findByText("COD charge")).toBeInTheDocument();
+            // 100 subtotal + 15 shipping + 5 COD charge
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*120/));
+        });
+
+        it("paying online: no charge until COD is chosen, and the COD row shows the higher amount", async () => {
+            const user = userEvent.setup();
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: ["razorpay"], cod: { enabled: true, minOrderValue: null }, codCharge: 5 });
+
+            const codRow = (await screen.findAllByText("Cash on delivery"))[0]!.closest("label")!;
+            await waitFor(() => expect(codRow.textContent).toMatch(/120/));
+            expect(screen.queryByText("COD charge")).not.toBeInTheDocument();
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*115/));
+
+            await user.click(codRow);
+            expect(await screen.findByText("COD charge")).toBeInTheDocument();
+            expect(summaryTotal()).toMatch(/Total\D*120/);
+        });
+
+        it("no charge set: nothing added", async () => {
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: [], cod: { enabled: true, minOrderValue: null } });
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*115/));
+            expect(screen.queryByText("COD charge")).not.toBeInTheDocument();
+        });
+    });
 });

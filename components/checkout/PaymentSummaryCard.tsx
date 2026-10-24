@@ -9,6 +9,8 @@ interface PaymentSummaryCardProps {
     taxLabel?: string;
     shipping: number | null;
     shippingCalculating?: boolean;
+    /** Shown when cash on delivery is chosen and the store charges for it; already in `total`. */
+    codCharge?: number;
     total: number;
 }
 
@@ -18,6 +20,7 @@ export default function PaymentSummaryCard({
     taxLabel,
     shipping,
     shippingCalculating,
+    codCharge = 0,
     total,
 }: PaymentSummaryCardProps) {
     const { format } = useStoreCurrency();
@@ -50,6 +53,12 @@ export default function PaymentSummaryCard({
                         )}
                     </span>
                 </div>
+                {codCharge > 0 && (
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-500 font-semibold">COD charge</span>
+                        <span className="text-gray-800 font-bold">{format(codCharge)}</span>
+                    </div>
+                )}
                 <div className="h-[1px] bg-gray-100 my-1" />
                 <div className="flex justify-between items-center pt-0.5">
                     <span className="text-gray-800 font-bold text-[15px] sm:text-[16px]">Total</span>

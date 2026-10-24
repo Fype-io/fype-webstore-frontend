@@ -1,11 +1,17 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import AddAddressPanel from "../AddAddressPanel";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import AddAddressPanel, { toStateIso } from "../AddAddressPanel";
+import { reverseGeocode } from "@/lib/reverseGeocode";
+import { suggestPlaces } from "@/lib/placeSuggest";
 import type { Address } from "@/redux/slices/userSlice";
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
+vi.mock("@/lib/reverseGeocode", () => ({ reverseGeocode: vi.fn() }));
+// City/area suggestions off (free text) unless a test turns them on.
+vi.mock("@/lib/placeSuggest", () => ({ suggestPlaces: vi.fn().mockResolvedValue({ available: false, suggestions: [] }) }));
 
 // The address form's starting country: a Jeebly (UAE) store passes
 // defaultCountry "AE", so a new address starts as a UAE one (optional postal
@@ -46,5 +52,148 @@ describe("AddAddressPanel - starting country", () => {
         renderPanel({ defaultCountry: "AE", initial: INDIAN_ADDRESS });
         expect(screen.getByPlaceholderText("Pincode")).toBeInTheDocument();
         expect(screen.getByDisplayValue("400001")).toBeInTheDocument();
+    });
+});
+
+describe("AddAddressPanel - UAE layout (Emirate list, area as Area)", () => {
+    it("labels the emirate list Emirate and the city field Area, with UAE hints for line 1 and 2", () => {
+        renderPanel({ defaultCountry: "AE" });
+        expect(screen.getByPlaceholderText("Emirate")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Area")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Flat or villa no., building name")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Street and a landmark")).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText("State")).not.toBeInTheDocument();
+    });
+
+    it("shows a field's example only while it's focused", async () => {
+        const user = userEvent.setup();
+        renderPanel({ defaultCountry: "AE" });
+        expect(screen.queryByText(/e\.g\. Al Barsha, JLT, Ruwais/)).not.toBeInTheDocument();
+        // Area opens once an emirate is picked (it searches that emirate's areas).
+        await user.click(screen.getByPlaceholderText("Emirate"));
+        await user.click(await screen.findByText("Dubai"));
+        await user.click(screen.getByPlaceholderText("Area"));
+        expect(screen.getByText("Your area or community, e.g. Al Barsha, JLT, Ruwais")).toBeInTheDocument();
+        await user.click(screen.getByPlaceholderText("Flat or villa no., building name"));
+        expect(screen.getByText("e.g. Flat 1204, Marina Tower")).toBeInTheDocument();
+        expect(screen.queryByText(/Al Barsha, JLT/)).not.toBeInTheDocument();
+    });
+
+    it('lists the 7 emirates without "Emirate"', async () => {
+        const user = userEvent.setup();
+        renderPanel({ defaultCountry: "AE" });
+        await user.click(screen.getByPlaceholderText("Emirate"));
+        for (const emirate of ["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras al-Khaimah", "Sharjah", "Umm al-Quwain"]) {
+            expect(screen.getByText(emirate)).toBeInTheDocument();
+        }
+        expect(screen.queryByText("Abu Dhabi Emirate")).not.toBeInTheDocument();
+    });
+
+    it("keeps other countries as they were", () => {
+        renderPanel({ initial: INDIAN_ADDRESS });
+        expect(screen.getByPlaceholderText("State")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("House/ Flat/ Office No.")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Area / Street / Locality")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("Mumbai")).toBeInTheDocument();
+    });
+});
+
+describe("AddAddressPanel - Use current location", () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, "geolocation", {
+            configurable: true,
+            value: { getCurrentPosition: (ok: (p: unknown) => void) => ok({ coords: { latitude: 25.1132, longitude: 55.2004 } }) },
+        });
+    });
+
+    it("UAE: the area goes in Area, the emirate is picked, line 2 stays for the street", async () => {
+        const user = userEvent.setup();
+        vi.mocked(reverseGeocode).mockResolvedValue({
+            country: "AE", state: "Dubai", city: "Dubai", pincode: "", area: "Al Barsha", house: "", latitude: 25.1132, longitude: 55.2004,
+        });
+        renderPanel({ defaultCountry: "AE" });
+
+        await user.click(screen.getByRole("button", { name: /use current location/i }));
+
+        await waitFor(() => expect(screen.getByPlaceholderText("Area")).toHaveValue("Al Barsha"));
+        expect(screen.getByPlaceholderText("Emirate")).toHaveValue("Dubai");
+        expect(screen.getByPlaceholderText("Street and a landmark")).toHaveValue("");
+    });
+
+    it("UAE: a geocoder's \"Abu Dhabi\" picks the Abu Dhabi emirate", async () => {
+        const user = userEvent.setup();
+        vi.mocked(reverseGeocode).mockResolvedValue({
+            country: "AE", state: "Abu Dhabi", city: "Ruwais", pincode: "", area: "", house: "", latitude: 24.11, longitude: 52.73,
+        });
+        renderPanel({ defaultCountry: "AE" });
+
+        await user.click(screen.getByRole("button", { name: /use current location/i }));
+
+        await waitFor(() => expect(screen.getByPlaceholderText("Emirate")).toHaveValue("Abu Dhabi"));
+        expect(screen.getByPlaceholderText("Area")).toHaveValue("Ruwais");
+    });
+
+    it("other countries: city in City and the area in line 2, as before", async () => {
+        const user = userEvent.setup();
+        vi.mocked(reverseGeocode).mockResolvedValue({
+            country: "IN", state: "Maharashtra", city: "Mumbai", pincode: "400053", area: "Andheri", house: "", latitude: 19.1, longitude: 72.8,
+        });
+        renderPanel();
+
+        await user.click(screen.getByRole("button", { name: /use current location/i }));
+
+        await waitFor(() => expect(screen.getByPlaceholderText("City")).toHaveValue("Mumbai"));
+        expect(screen.getByPlaceholderText("Area / Street / Locality")).toHaveValue("Andheri");
+    });
+});
+
+describe("toStateIso", () => {
+    it.each([
+        ["Abu Dhabi Emirate", "AZ"],
+        ["Abu Dhabi", "AZ"],
+        ["Ras Al Khaimah", "RK"],
+        ["Sharjah", "SH"],
+        ["DU", "DU"],
+        ["Nowhere", ""],
+    ])("%p -> %p", (name, iso) => {
+        expect(toStateIso("AE", name)).toBe(iso);
+    });
+});
+
+describe("AddAddressPanel - City / Area from Google's list", () => {
+    it("UAE: Area searches the picked emirate's areas, and keeps the one picked", async () => {
+        const user = userEvent.setup();
+        vi.mocked(suggestPlaces).mockImplementation(async (q) => ({
+            available: true,
+            suggestions: q.q ? [{ name: "Ruwais", secondary: "Abu Dhabi - United Arab Emirates", placeId: "p1" }] : [],
+        }));
+        renderPanel({ defaultCountry: "AE" });
+
+        expect(screen.getByPlaceholderText("Area")).toBeDisabled(); // pick the emirate first
+        await user.click(screen.getByPlaceholderText("Emirate"));
+        await user.click(await screen.findByText("Abu Dhabi"));
+        await waitFor(() => expect(screen.getByPlaceholderText("Area")).toBeEnabled());
+
+        await user.type(screen.getByPlaceholderText("Area"), "ruw");
+        await user.click(await screen.findByText("Ruwais"));
+
+        expect(screen.getByPlaceholderText("Area")).toHaveValue("Ruwais");
+        expect(suggestPlaces).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "area", country: "AE", state: "AZ", q: "ruw" }));
+    });
+
+    it("India: City searches the picked state's cities", async () => {
+        const user = userEvent.setup();
+        vi.mocked(suggestPlaces).mockImplementation(async (q) => ({
+            available: true,
+            suggestions: q.q ? [{ name: "Kochi", secondary: "Kerala, India", placeId: "p1" }] : [],
+        }));
+        renderPanel({ initial: { ...INDIAN_ADDRESS, state: "Kerala", city: "" } as unknown as Address });
+
+        await waitFor(() => expect(screen.getByPlaceholderText("City")).toBeEnabled());
+        await user.type(screen.getByPlaceholderText("City"), "koc");
+        await user.click(await screen.findByText("Kochi"));
+
+        expect(screen.getByPlaceholderText("City")).toHaveValue("Kochi");
+        expect(suggestPlaces).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "city", country: "IN", state: "KL", q: "koc" }));
     });
 });

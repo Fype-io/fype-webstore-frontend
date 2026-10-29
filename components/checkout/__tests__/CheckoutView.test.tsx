@@ -758,3 +758,20 @@ describe("CheckoutView - Jeebly (quoted by city)", () => {
         });
     });
 });
+
+describe("CheckoutView - tax on shipping is in the total shown", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(notReadyRazorpay));
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(notReadyStripe));
+    });
+
+    it("a rated delivery charge brings its tax: total = items 100 + delivery 60 + tax on delivery 3", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 60, shippingTax: 3 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "dtdc", activeGateways: [] });
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹163").length).toBeGreaterThan(0));
+        expect(screen.queryAllByText("Tax on shipping").length).toBe(0); // one total row without the server's tax lines
+    });
+});

@@ -14,6 +14,7 @@ export interface GridProduct {
     hasVariants?: boolean;
     taxApplied?: boolean;
     taxRate?: number;
+    effectiveTaxRate?: number;
     hasDiscount?: boolean;
     discountPercentage?: number;
     imageUrl: string;
@@ -46,15 +47,15 @@ export default function ProductGrid({ products, title = "Fresh Drops", globalTax
 
                         const { displayPrice } = calculateProductTax(price, globalTax, {
                             applied: product.taxApplied,
-                            rate: product.taxRate,
+                            rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
                         });
                         const { displayPrice: maxDisplayPrice } = calculateProductTax(maxPrice, globalTax, {
                             applied: product.taxApplied,
-                            rate: product.taxRate,
+                            rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
                         });
                         const { displayPrice: compareDisplayPrice } = calculateProductTax(compareAtPrice, globalTax, {
                             applied: product.taxApplied,
-                            rate: product.taxRate,
+                            rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
                         });
 
                         return (

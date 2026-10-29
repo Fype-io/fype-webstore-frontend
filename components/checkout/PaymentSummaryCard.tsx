@@ -2,11 +2,23 @@
 
 import { Banknote } from "lucide-react";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
+import type { TaxLine } from "@/redux/slices/userSlice";
+import { taxLineLabel } from "@/utils/taxCalculator";
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 
 interface PaymentSummaryCardProps {
     subtotal: number;
+    /** The order's whole tax (items + shipping). */
     tax: number;
     taxLabel?: string;
+    /** The tax split by type, as the server computed it for the items (CGST/SGST/IGST, VAT ...). */
+    taxLines?: TaxLine[];
+    /** Tax on a shipping charge rated at checkout, not yet in `taxLines`; shown as its own row. */
+    shippingTax?: number;
+    /** Order discount, shown as a deduction when positive. */
+    discount?: number;
     shipping: number | null;
     shippingCalculating?: boolean;
     /** Shown when cash on delivery is chosen and the store charges for it; already in `total`. */
@@ -18,12 +30,18 @@ export default function PaymentSummaryCard({
     subtotal,
     tax,
     taxLabel,
+    taxLines,
+    shippingTax = 0,
+    discount = 0,
     shipping,
     shippingCalculating,
     codCharge = 0,
     total,
 }: PaymentSummaryCardProps) {
     const { format } = useStoreCurrency();
+    // One row per tax type when the server's lines add up to the tax shown; otherwise the single total row.
+    const itemLines = (taxLines ?? []).filter((line) => line.amount > 0);
+    const linesAddUp = itemLines.length > 0 && round2(itemLines.reduce((sum, line) => sum + line.amount, 0) + shippingTax) === round2(tax);
     return (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
@@ -35,10 +53,33 @@ export default function PaymentSummaryCard({
                     <span className="text-gray-500 font-semibold">Subtotal</span>
                     <span className="text-gray-800 font-bold">{format(subtotal)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-gray-500 font-semibold">{taxLabel || "Tax"}</span>
-                    <span className="text-gray-800 font-bold">{format(tax)}</span>
-                </div>
+                {linesAddUp ? (
+                    <>
+                        {itemLines.map((line) => (
+                            <div key={line.type} className="flex justify-between items-center">
+                                <span className="text-gray-500 font-semibold">{taxLineLabel(line)}</span>
+                                <span className="text-gray-800 font-bold">{format(line.amount)}</span>
+                            </div>
+                        ))}
+                        {shippingTax > 0 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-500 font-semibold">{taxLabel || "Tax"} on shipping</span>
+                                <span className="text-gray-800 font-bold">{format(shippingTax)}</span>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-500 font-semibold">{taxLabel || "Tax"}</span>
+                        <span className="text-gray-800 font-bold">{format(tax)}</span>
+                    </div>
+                )}
+                {discount > 0 && (
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-500 font-semibold">Discount</span>
+                        <span className="text-green-600 font-bold">-{format(discount)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between items-center">
                     <span className="text-gray-500 font-semibold">Shipping</span>
                     <span className="text-gray-400 font-medium">

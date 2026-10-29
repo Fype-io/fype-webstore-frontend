@@ -165,7 +165,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
     }, [selectedVariant, hasVariants]);
 
     const displayData = useMemo(() => {
-        if (!product) return { price: 0, compareAtPrice: 0, taxApplied: false, taxRate: undefined, images: [] as string[], available: false };
+        if (!product) return { price: 0, compareAtPrice: 0, taxApplied: false, taxRate: undefined, effectiveTaxRate: undefined, images: [] as string[], available: false };
 
         if (hasVariants && selectedVariant) {
             return {
@@ -173,6 +173,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                 compareAtPrice: selectedVariant.compareAtPrice,
                 taxApplied: product.price.taxApplied,
                 taxRate: product.price.taxRate,
+                effectiveTaxRate: selectedVariant.effectiveTaxRate ?? product.price.effectiveTaxRate,
                 images: galleryImages(product.images, selectedVariant.image, variantChosen),
                 available: canBuy({ available: selectedVariant.inventory?.available, trackQuantity: selectedVariant.inventory?.trackQuantity, continueSelling: variantContinueSelling(selectedVariant, product) }),
             };
@@ -182,6 +183,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
             compareAtPrice: product.price.compareAtPrice,
             taxApplied: product.price.taxApplied,
             taxRate: product.price.taxRate,
+            effectiveTaxRate: product.price.effectiveTaxRate,
             images: product.images ?? [],
             available: canBuy({ available: product.inventory?.available, trackQuantity: product.inventory?.trackQuantity, continueSelling: productContinueSelling(product) }),
         };
@@ -272,10 +274,10 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
         }
     };
 
-    const { displayPrice } = calculateProductTax(displayData.price, globalTax, { applied: displayData.taxApplied, rate: displayData.taxRate });
+    const { displayPrice } = calculateProductTax(displayData.price, globalTax, { applied: displayData.taxApplied, rate: displayData.taxRate, effectiveRate: displayData.effectiveTaxRate });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(displayData.compareAtPrice, globalTax, {
         applied: displayData.taxApplied,
-        rate: displayData.taxRate,
+        rate: displayData.taxRate, effectiveRate: displayData.effectiveTaxRate,
     });
 
     const hasDescription = Boolean(product.description && product.description.replace(/<[^>]*>/g, "").trim());

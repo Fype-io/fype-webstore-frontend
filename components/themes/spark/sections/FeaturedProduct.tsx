@@ -113,10 +113,10 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
     const prices = variants.map((v) => v.price ?? 0);
     const minPrice = displayProduct.hasVariants && prices.length ? Math.min(...prices) : displayProduct.price.price;
     const compareAtPrice = displayProduct.hasVariants ? 0 : displayProduct.price.compareAtPrice;
-    const { displayPrice } = calculateProductTax(minPrice, globalTax, { applied: displayProduct.price.taxApplied, rate: displayProduct.price.taxRate });
+    const { displayPrice } = calculateProductTax(minPrice, globalTax, { applied: displayProduct.price.taxApplied, rate: displayProduct.price.taxRate, effectiveRate: displayProduct.price.effectiveTaxRate });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(compareAtPrice, globalTax, {
         applied: displayProduct.price.taxApplied,
-        rate: displayProduct.price.taxRate,
+        rate: displayProduct.price.taxRate, effectiveRate: displayProduct.price.effectiveTaxRate,
     });
 
     const inStock = canBuy({

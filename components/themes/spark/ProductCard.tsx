@@ -79,11 +79,11 @@ export default function ProductCard({
     // preview), it doesn't hide the affordance entirely.
     const canQuickAdd = !product.hasVariants && !!storeId;
 
-    const { displayPrice } = calculateProductTax(price, globalTax, { applied: product.taxApplied, rate: product.taxRate });
-    const { displayPrice: maxDisplayPrice } = calculateProductTax(maxPrice, globalTax, { applied: product.taxApplied, rate: product.taxRate });
+    const { displayPrice } = calculateProductTax(price, globalTax, { applied: product.taxApplied, rate: product.taxRate, effectiveRate: product.effectiveTaxRate });
+    const { displayPrice: maxDisplayPrice } = calculateProductTax(maxPrice, globalTax, { applied: product.taxApplied, rate: product.taxRate, effectiveRate: product.effectiveTaxRate });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(compareAtPrice, globalTax, {
         applied: product.taxApplied,
-        rate: product.taxRate,
+        rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
     });
 
     const handleQuickAdd = async (e: React.MouseEvent) => {

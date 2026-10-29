@@ -84,10 +84,10 @@ function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: F
     const [added, setAdded] = useState(false);
 
     const productImage = product.image || product.images?.[0] || PLACEHOLDER_IMAGE;
-    const { displayPrice } = calculateProductTax(product.price, globalTax, { applied: product.taxApplied, rate: product.taxRate });
+    const { displayPrice } = calculateProductTax(product.price, globalTax, { applied: product.taxApplied, rate: product.taxRate, effectiveRate: product.effectiveTaxRate });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(product.compareAtPrice, globalTax, {
         applied: product.taxApplied,
-        rate: product.taxRate,
+        rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
     });
 
     const showQuickAdd = !disableQuickAdd && !product.hasVariants;

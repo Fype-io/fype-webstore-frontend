@@ -29,15 +29,15 @@ export default function ProductCard({ product, globalTax, shopName, storeId, cur
 
     const { displayPrice } = calculateProductTax(price, globalTax, {
         applied: product.taxApplied,
-        rate: product.taxRate,
+        rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
     });
     const { displayPrice: maxDisplayPrice } = calculateProductTax(maxPrice, globalTax, {
         applied: product.taxApplied,
-        rate: product.taxRate,
+        rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
     });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(compareAtPrice, globalTax, {
         applied: product.taxApplied,
-        rate: product.taxRate,
+        rate: product.taxRate, effectiveRate: product.effectiveTaxRate,
     });
 
     return (

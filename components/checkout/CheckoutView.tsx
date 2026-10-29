@@ -88,7 +88,7 @@ export default function CheckoutView({
     const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(true);
     const [pickedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodId | null>(null);
     const [tatInfo, setTatInfo] = useState<{ deliveryDate?: string } | null>(null);
-    const [shipmentState, setShipmentState] = useState<{ serviceable: boolean; deliveryCharge: number | null; reason?: string }>({
+    const [shipmentState, setShipmentState] = useState<{ serviceable: boolean; deliveryCharge: number | null; shippingTax?: number; reason?: string }>({
         serviceable: true,
         deliveryCharge: null,
     });
@@ -112,7 +112,13 @@ export default function CheckoutView({
     // setting (on/off, minimum order value); a store that never saved it keeps the
     // old rule: COD only when no online gateway is active.
     const hasPaymentGateway = activeGateways.length > 0;
-    const orderTotal = (cart?.subtotal || 0) + (cart?.tax || 0) + shippingCost - (cart?.discount || 0);
+    // The cart's tax is on the items (plus any shipping tax it already knows of). A shipping charge rated at checkout
+    // brings its own tax from the server, so the total shown is the amount that will be charged.
+    const cartShippingTax = cart?.shippingTax || 0;
+    const shippingRatedHere = (hasDeliveryApp || hasManualShipping) && shipmentState.deliveryCharge !== null;
+    const shippingTax = shippingRatedHere ? shipmentState.shippingTax || 0 : cartShippingTax;
+    const taxTotal = (cart?.tax || 0) - cartShippingTax + shippingTax;
+    const orderTotal = (cart?.subtotal || 0) + taxTotal + shippingCost - (cart?.discount || 0);
     const showCod = codAvailability(cod, hasPaymentGateway, orderTotal, shipmentProvider).offered;
     // COD is the only way to pay: chosen automatically, no method picker needed.
     const codOnly = showCod && !hasPaymentGateway;
@@ -181,7 +187,7 @@ export default function CheckoutView({
         setIsCalculatingShipping(true);
         try {
             const rate = await calculateShippingRate(storeId, "", cart.items, "manual");
-            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, reason: rate.reason });
+            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, shippingTax: rate.shippingTax, reason: rate.reason });
         } finally {
             setIsCalculatingShipping(false);
         }
@@ -199,7 +205,7 @@ export default function CheckoutView({
         setIsCalculatingShipping(true);
         try {
             const rate = await calculateShippingRate(storeId, "", cart.items, shipmentProvider, { city, state, country });
-            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, reason: rate.reason });
+            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, shippingTax: rate.shippingTax, reason: rate.reason });
             else setShipmentState({ serviceable: false, deliveryCharge: null, reason: "rate_api_failed" });
         } finally {
             setIsCalculatingShipping(false);
@@ -222,7 +228,7 @@ export default function CheckoutView({
         try {
             const [tatRes, rateRes] = await Promise.all([getExpectedTAT(storeId, pincode), calculateShippingRate(storeId, pincode, cart.items)]);
             if (tatRes.success) setTatInfo(tatRes);
-            if (rateRes) setShipmentState({ serviceable: rateRes.serviceable, deliveryCharge: rateRes.deliveryCharge, reason: rateRes.reason });
+            if (rateRes) setShipmentState({ serviceable: rateRes.serviceable, deliveryCharge: rateRes.deliveryCharge, shippingTax: rateRes.shippingTax, reason: rateRes.reason });
             else setShipmentState({ serviceable: false, deliveryCharge: null, reason: "rate_api_failed" });
         } finally {
             setIsCalculatingShipping(false);
@@ -255,10 +261,10 @@ export default function CheckoutView({
                         paymentMethod,
                         customerNotes: "",
                         subtotal: cart.subtotal,
-                        tax: cart.tax,
+                        tax: taxTotal,
                         shipping: shippingCost,
                         // The backend prices the order itself; COD adds the store's COD charge there too.
-                        total: (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0) + (paymentMethod === "cod" ? codCharge : 0),
+                        total: (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0) + (paymentMethod === "cod" ? codCharge : 0),
                         estimatedDelivery: tatInfo?.deliveryDate || null,
                         ...(gateway && gatewayRef ? { gateway, gatewayRef } : {}),
                     },
@@ -323,7 +329,7 @@ export default function CheckoutView({
         }
 
         if (!user || !method) return;
-        const totalAmount = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
+        const totalAmount = (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0);
         if (totalAmount <= 0) return;
 
         // A wallet pays from Stripe's own button, which replaces this one when it's chosen.
@@ -468,7 +474,7 @@ export default function CheckoutView({
         );
     }
 
-    const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
+    const total = (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0);
     // Cash on delivery chosen (or the only way to pay): the summary shows the store's COD charge.
     const codFee = codOnly || selectedPaymentMethod === "cod" ? codCharge : 0;
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
@@ -599,8 +605,11 @@ export default function CheckoutView({
                     <div className="sticky top-8 flex flex-col gap-4">
                         <PaymentSummaryCard
                             subtotal={cart.subtotal}
-                            tax={cart.tax}
+                            tax={taxTotal}
                             taxLabel={cart.taxLabel}
+                            taxLines={cart.taxLines}
+                            shippingTax={shippingRatedHere ? shippingTax : 0}
+                            discount={cart.discount}
                             shipping={shippingDisplay}
                             shippingCalculating={isCalculatingShipping}
                             codCharge={codFee}

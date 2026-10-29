@@ -5,6 +5,8 @@ import type { CartItem } from "@/redux/slices/userSlice";
 export interface CalculateShippingRateResponse {
     serviceable: boolean;
     deliveryCharge: number | null;
+    /** Tax on the delivery charge (0 unless the store charges tax on shipping); absent from an older API. */
+    shippingTax?: number;
     estimatedDays: string | null;
     reason?: string;
     source: "cache" | "api";

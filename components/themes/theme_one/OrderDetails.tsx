@@ -1,5 +1,6 @@
 "use client";
 
+import { taxLineLabel } from "@/utils/taxCalculator";
 import { useState } from "react";
 import Link from "next/link";
 import type { Order } from "@/redux/slices/userSlice";
@@ -94,12 +95,19 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                     <span>Subtotal</span>
                                     <span>{prefix}{(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0)).toLocaleString(locale)}</span>
                                 </div>
-                                {order.tax > 0 && (
-                                    <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
-                                        <span>Tax</span>
-                                        <span>{prefix}{order.tax.toLocaleString(locale)}</span>
-                                    </div>
-                                )}
+                                {order.tax > 0 && (order.tax_lines ?? []).filter((line) => line.amount > 0).length > 0
+                                    ? (order.tax_lines ?? []).filter((line) => line.amount > 0).map((line) => (
+                                        <div key={line.type} className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                            <span>{taxLineLabel(line)}</span>
+                                            <span>{prefix}{line.amount.toLocaleString(locale)}</span>
+                                        </div>
+                                    ))
+                                    : order.tax > 0 && (
+                                        <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                            <span>Tax</span>
+                                            <span>{prefix}{order.tax.toLocaleString(locale)}</span>
+                                        </div>
+                                    )}
                                 <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                     <span>Shipping</span>
                                     {order.shipping > 0 ? <span>{prefix}{order.shipping.toLocaleString(locale)}</span> : <span className="text-green-600 font-semibold">Free</span>}

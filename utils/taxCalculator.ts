@@ -2,6 +2,14 @@ export interface TaxCalculationResult {
     displayPrice: string;
 }
 
+/**
+ * The price a shopper is shown. Prices are entered without tax and tax is always added at checkout; "prices include
+ * tax" (inclusivePricing.webstore) only changes what is DISPLAYED: price + tax, with the tax shown as included.
+ *
+ * The rate is the server's `effectiveRate` (what the product or variant is taxed at under the store's tax settings,
+ * including "charge tax" off and per-product mode). Without it (an older API, the editor's placeholder product) the
+ * previous rule is used so nothing breaks.
+ */
 export const calculateProductTax = (
     basePrice: number,
     globalTax:
@@ -16,33 +24,31 @@ export const calculateProductTax = (
     productTax: {
         applied?: boolean;
         rate?: number;
+        effectiveRate?: number;
     }
 ): TaxCalculationResult => {
-    const isGlobal = globalTax?.global ?? false;
-    let effectiveRate = 0;
     const isInclusive = globalTax?.inclusivePricing?.webstore ?? false;
+    let effectiveRate = 0;
 
-    if (isGlobal) {
+    if (typeof productTax?.effectiveRate === "number" && Number.isFinite(productTax.effectiveRate)) {
+        effectiveRate = productTax.effectiveRate;
+    } else if (globalTax?.global ?? false) {
         effectiveRate = globalTax?.rate ?? 0;
+    } else if (productTax?.applied) {
+        effectiveRate = productTax?.rate ?? 0;
     } else {
-        if (productTax?.applied) {
-            effectiveRate = productTax?.rate ?? 0;
-        } else {
-            // Fallback to shop DB
-            effectiveRate = globalTax?.rate ?? 0;
-        }
+        effectiveRate = globalTax?.rate ?? 0;
     }
 
     const formatPrice = (value: number): string => Number(value.toFixed(2)).toString();
 
-    if (effectiveRate === 0) {
+    if (effectiveRate === 0 || !isInclusive) {
         return { displayPrice: formatPrice(basePrice) };
     }
 
-    if (isInclusive) {
-        const priceWithTax = basePrice * (1 + effectiveRate / 100);
-        return { displayPrice: formatPrice(priceWithTax) };
-    }
-
-    return { displayPrice: formatPrice(basePrice) };
+    return { displayPrice: formatPrice(basePrice * (1 + effectiveRate / 100)) };
 };
+
+/** "CGST (9%)", "VAT (5%)": a tax line as shown to the shopper. */
+export const taxLineLabel = (line: { type: string; rate: number }): string =>
+    line.rate > 0 ? `${line.type} (${Number(line.rate.toFixed(2))}%)` : line.type;

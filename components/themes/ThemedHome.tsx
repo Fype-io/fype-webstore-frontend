@@ -31,6 +31,7 @@ function formatProductsForGrid(products: StorefrontProduct[]): GridProduct[] {
         hasVariants: product.hasVariants,
         taxApplied: product.taxApplied,
         taxRate: product.taxRate,
+        effectiveTaxRate: product.effectiveTaxRate,
         hasDiscount: product.hasDiscount,
         discountPercentage: product.discountPercentage,
         imageUrl:

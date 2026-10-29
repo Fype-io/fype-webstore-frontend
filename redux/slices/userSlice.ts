@@ -73,6 +73,10 @@ export interface Cart {
     totalCompareAtPrice?: number;
     tax: number;
     taxLabel?: string;
+    /** The tax split by type, shipping tax included in the amounts; absent from an older API. */
+    taxLines?: TaxLine[];
+    /** The part of `tax` that is on shipping. */
+    shippingTax?: number;
     shipping: number;
     discount?: number;
     total: number;
@@ -98,6 +102,13 @@ export interface Shipment {
     items: OrderItem[];
 }
 
+/** One line of an order's or cart's tax: CGST/SGST/IGST for India, otherwise the store's tax name (VAT, GST ...). */
+export interface TaxLine {
+    type: string;
+    rate: number;
+    amount: number;
+}
+
 export interface Order {
     orderId: string;
     orderNumber: string;
@@ -108,6 +119,8 @@ export interface Order {
     shipping: number;
     discount: number;
     total: number;
+    /** The order's tax split by type (snapshot); absent from an older API. */
+    tax_lines?: TaxLine[];
     /** Currency the order was placed in (orders from before PR1 have none). */
     currency?: string | null;
     paymentStatus: "pending" | "completed" | "paid" | "unpaid" | "cod" | "failed" | "refunded" | "partially_refunded";

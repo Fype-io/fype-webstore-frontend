@@ -161,6 +161,8 @@ export interface StorefrontProduct {
     hasVariants: boolean;
     taxApplied?: boolean;
     taxRate?: number;
+    /** What the product is taxed at under the store's tax settings (the server's answer); absent from an older API. */
+    effectiveTaxRate?: number;
     // Drives ProductCard's "New" badge — optional since older/other feed
     // endpoints may not always populate it.
     createdAt?: string;
@@ -233,6 +235,8 @@ export interface ProductVariant {
     inventory: { available: number; trackQuantity: boolean };
     /** The variant's own oversell switch (the backend already resolves it against the product's). */
     continueSelling?: boolean;
+    /** What this variant is taxed at under the store's tax settings (the server's answer). */
+    effectiveTaxRate?: number;
 }
 
 export interface VariantOptions {
@@ -259,6 +263,7 @@ export interface ProductDetail {
         compareAtPrice: number;
         taxApplied: boolean;
         taxRate?: number;
+        effectiveTaxRate?: number;
     };
     display: {
         vendor?: string;

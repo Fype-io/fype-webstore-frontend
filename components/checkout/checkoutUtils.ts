@@ -82,6 +82,21 @@ export const ORDER_NOW_NOTE = "The store will contact you to arrange payment.";
 /** Shown on the delivery address card when the shopper tries to order without one. */
 export const ADDRESS_REQUIRED_MESSAGE = "Please add a delivery address to place your order.";
 
+/**
+ * calculate-rate reasons that are about the delivery address, so another address may
+ * work. Any other reason (a product with no package or weight, the store's shipping not
+ * set up, the rate call failing) is the store's to fix: the shopper gets
+ * CHECKOUT_UNAVAILABLE_MESSAGE instead of being told to change their address.
+ */
+const ADDRESS_RATE_REASONS = new Set(["not_serviceable", "invalid_pincode", "invalid_address"]);
+
+export function isAddressRateReason(reason: string | undefined): boolean {
+    return !!reason && ADDRESS_RATE_REASONS.has(reason);
+}
+
+/** The backend's message for a store-side checkout problem (CHECKOUT_UNAVAILABLE_MESSAGE in orderPreflight.service.ts). */
+export const CHECKOUT_UNAVAILABLE_MESSAGE = "We couldn't complete your order right now. Please try again later or contact the store.";
+
 /** An amount in the store's currency ("₹500", "$25", "AED 100"); INR when the currency is unknown. */
 export function formatStoreMoney(amount: number, currency?: string | null): string {
     return formatPrice(amount, currency);

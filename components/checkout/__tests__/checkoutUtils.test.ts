@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { codAvailability, codChargeOf, formatStoreMoney } from "../checkoutUtils";
+import { codAvailability, codChargeOf, formatStoreMoney, isAddressRateReason } from "../checkoutUtils";
 import { defaultAddressCountry, providerSupportsCod, quotesByCity, resolveShipmentProvider } from "@/lib/shipment-provider";
 
 describe("codAvailability", () => {
@@ -93,5 +93,21 @@ describe("codChargeOf", () => {
         ["no shop", null, "jeebly"],
     ])("is 0 for %s", (_label, s, provider) => {
         expect(codChargeOf(s, provider)).toBe(0);
+    });
+});
+
+describe("isAddressRateReason", () => {
+    it("is true only for reasons another address can fix", () => {
+        expect(isAddressRateReason("not_serviceable")).toBe(true);
+        expect(isAddressRateReason("invalid_pincode")).toBe(true);
+        expect(isAddressRateReason("invalid_address")).toBe(true);
+    });
+
+    it("is false for the store's own problems, a failed call, or no reason", () => {
+        expect(isAddressRateReason("PRODUCT_PACKAGE_NOT_CONFIGURED")).toBe(false);
+        expect(isAddressRateReason("PRODUCT_WEIGHT_NOT_CONFIGURED")).toBe(false);
+        expect(isAddressRateReason("SHIPPING_RATE_NOT_CONFIGURED")).toBe(false);
+        expect(isAddressRateReason("rate_api_failed")).toBe(false);
+        expect(isAddressRateReason(undefined)).toBe(false);
     });
 });

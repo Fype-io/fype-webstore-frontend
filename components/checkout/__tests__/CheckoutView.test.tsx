@@ -6,7 +6,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import userReducer from "@/redux/slices/userSlice";
 import CheckoutView from "../CheckoutView";
 import type StripeExpressCheckout from "../StripeExpressCheckout";
-import { ADDRESS_REQUIRED_MESSAGE, ORDER_NOW_NOTE } from "../checkoutUtils";
+import { ADDRESS_REQUIRED_MESSAGE, CHECKOUT_UNAVAILABLE_MESSAGE, ORDER_NOW_NOTE } from "../checkoutUtils";
 import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeAdapter";
 import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
@@ -786,5 +786,60 @@ describe("CheckoutView - tax on shipping is in the total shown", () => {
         await waitFor(() => expect(screen.getAllByText("₹225.75").length).toBeGreaterThan(0));
         expect(screen.getAllByText("VAT (5%)").length).toBeGreaterThan(0);
         expect(screen.queryAllByText("VAT on shipping").length).toBe(0);
+    });
+});
+
+// A rate the shopper can't fix (a product with no package, the store's shipping not set
+// up, the rate call failing) isn't an address problem: one common message, and ordering
+// stays blocked. Only an address reason talks about the pincode/area.
+describe("CheckoutView - no shipping rate for a reason the store has to fix", () => {
+    const rate = (r: object) => r as Awaited<ReturnType<typeof calculateShippingRate>>;
+    const PACKAGE_MESSAGE = 'Product "Test product" does not have a package configured. Please assign a package to the product.';
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(notReadyRazorpay));
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(notReadyStripe));
+    });
+    afterEach(() => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(null);
+    });
+
+    it("a product with no package: the common message, not \"change your address\", and no ordering", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(
+            rate({ serviceable: false, deliveryCharge: null, estimatedDays: null, reason: "PRODUCT_PACKAGE_NOT_CONFIGURED", message: PACKAGE_MESSAGE, source: "api" })
+        );
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "dtdc", activeGateways: [], cod: { enabled: true, minOrderValue: null } });
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(CHECKOUT_UNAVAILABLE_MESSAGE);
+        expect(screen.queryByText(/not serviceable|change your delivery address/i)).not.toBeInTheDocument();
+        // The store's own wording is for the merchant, never the shopper.
+        expect(screen.queryByText(/package/i)).not.toBeInTheDocument();
+        await addressLoaded();
+        expect(screen.getByRole("button", { name: /place order/i })).toBeDisabled();
+    });
+
+    it("the rate call failing: the same common message", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(
+            rate({ serviceable: false, deliveryCharge: null, estimatedDays: null, reason: "rate_api_failed", source: "api" })
+        );
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "dtdc" });
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(CHECKOUT_UNAVAILABLE_MESSAGE);
+        expect(screen.queryByText(/not serviceable/i)).not.toBeInTheDocument();
+    });
+
+    it("a pincode the courier doesn't serve: still asks for another address, without the common message", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(
+            rate({ serviceable: false, deliveryCharge: null, estimatedDays: null, reason: "not_serviceable", source: "api" })
+        );
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "dtdc" });
+
+        expect(await screen.findByText(/This pincode is not serviceable/)).toBeInTheDocument();
+        expect(screen.queryByText(CHECKOUT_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument();
     });
 });

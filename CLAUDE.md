@@ -1,5 +1,17 @@
 @AGENTS.md
 
+## Plan and agree before changing code
+
+Before modifying anything in this repo, Claude presents the plan and discusses it with the user:
+
+- what will be done, and why;
+- every file that will be changed, created or deleted, and what changes in each;
+- how the change shows up: storefront pages and labels, API requests/responses, stored data, and anything in another repo (backend, admin) that depends on it;
+- the tests that will be added or changed, and how the result will be verified;
+- open questions and decisions, with a recommendation for each.
+
+The code is changed only after the user has agreed to that plan. Anything beyond it (another file, a different approach, an extra fix found on the way) is raised and agreed before doing it. Plans are discussed in the conversation and are not stored in this file.
+
 ## Git workflow
 
 - **Never commit directly to `develop` or `main`.** All work goes on a feature branch (`feat/...`, `fix/...`, `refactor/...`) created from `develop`, and reaches `develop`/`main` only by merge/PR.

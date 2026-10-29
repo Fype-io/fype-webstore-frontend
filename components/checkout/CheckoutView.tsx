@@ -115,7 +115,8 @@ export default function CheckoutView({
     // The cart's tax is on the items (plus any shipping tax it already knows of). A shipping charge rated at checkout
     // brings its own tax from the server, so the total shown is the amount that will be charged.
     const cartShippingTax = cart?.shippingTax || 0;
-    const shippingRatedHere = (hasDeliveryApp || hasManualShipping) && shipmentState.deliveryCharge !== null;
+    // Only a charge that differs from the cart's own shipping brings new tax; the same charge is already in the cart's tax and tax lines.
+    const shippingRatedHere = (hasDeliveryApp || hasManualShipping) && shipmentState.deliveryCharge !== null && shipmentState.deliveryCharge !== (cart?.shipping ?? 0);
     const shippingTax = shippingRatedHere ? shipmentState.shippingTax || 0 : cartShippingTax;
     const taxTotal = (cart?.tax || 0) - cartShippingTax + shippingTax;
     const orderTotal = (cart?.subtotal || 0) + taxTotal + shippingCost - (cart?.discount || 0);

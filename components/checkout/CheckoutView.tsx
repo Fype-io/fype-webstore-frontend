@@ -118,6 +118,10 @@ export default function CheckoutView({
     // Only a charge that differs from the cart's own shipping brings new tax; the same charge is already in the cart's tax and tax lines.
     const shippingRatedHere = (hasDeliveryApp || hasManualShipping) && shipmentState.deliveryCharge !== null && shipmentState.deliveryCharge !== (cart?.shipping ?? 0);
     const shippingTax = shippingRatedHere ? shipmentState.shippingTax || 0 : cartShippingTax;
+    // An API that returns itemTaxLines has the shipping tax out of the per-type lines, so it is always shown as its own row;
+    // an older one has it inside them, and only a charge rated here is shown separately.
+    const summaryTaxLines = cart?.itemTaxLines ?? cart?.taxLines;
+    const showShippingTaxRow = cart?.itemTaxLines !== undefined || shippingRatedHere;
     const taxTotal = (cart?.tax || 0) - cartShippingTax + shippingTax;
     const orderTotal = (cart?.subtotal || 0) + taxTotal + shippingCost - (cart?.discount || 0);
     const showCod = codAvailability(cod, hasPaymentGateway, orderTotal, shipmentProvider).offered;
@@ -608,8 +612,8 @@ export default function CheckoutView({
                             subtotal={cart.subtotal}
                             tax={taxTotal}
                             taxLabel={cart.taxLabel}
-                            taxLines={cart.taxLines}
-                            shippingTax={shippingRatedHere ? shippingTax : 0}
+                            taxLines={summaryTaxLines}
+                            shippingTax={showShippingTaxRow ? shippingTax : 0}
                             discount={cart.discount}
                             shipping={shippingDisplay}
                             shippingCalculating={isCalculatingShipping}

@@ -46,6 +46,20 @@ export interface CodSetting {
     minOrderValue?: number | null;
 }
 
+/**
+ * The COD charge a cash-on-delivery order adds, in the store's currency:
+ * Jeebly's "COD charge per order" from its setup (public settings
+ * logistics.jeebly.codCharge), 0 for any other courier. Same rule as the
+ * backend's codFeeOf, which charges it.
+ */
+export function codChargeOf(
+    shop: { settings?: { logistics?: { jeebly?: { codCharge?: number } } } } | null | undefined,
+    shipmentProvider: string
+): number {
+    const charge = Number(shop?.settings?.logistics?.jeebly?.codCharge);
+    return shipmentProvider === "jeebly" && Number.isFinite(charge) && charge > 0 ? charge : 0;
+}
+
 export function codAvailability(
     cod: CodSetting | undefined,
     hasPaymentGateway: boolean,

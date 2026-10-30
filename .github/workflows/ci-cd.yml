@@ -6,6 +6,9 @@ on:
   pull_request:
   push:
     branches: [develop, main]
+  # Manual run ("Run workflow" on the develop branch) to deploy staging when a push did not start one.
+  # Production stays push-only on main.
+  workflow_dispatch:
 
 # A newer push to a PR cancels its older run; pushes to develop/main queue instead,
 # so a deploy is never cancelled halfway.
@@ -46,7 +49,7 @@ jobs:
 
   deploy-staging:
     needs: checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:

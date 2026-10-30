@@ -32,7 +32,7 @@ import PaymentSummaryCard from "./PaymentSummaryCard";
 import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, type StripeExpressConfig, type WalletAvailability } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
 import { ADDRESS_REQUIRED_MESSAGE, addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
-import type { ShipmentProvider } from "@/lib/shipment-provider";
+import { defaultAddressCountry, quotesByCity, type ShipmentProvider } from "@/lib/shipment-provider";
 import { orderHref } from "@/lib/order-url";
 
 interface CheckoutViewProps {
@@ -52,6 +52,8 @@ interface CheckoutViewProps {
     currency?: string;
     /** The store's cash-on-delivery setting (public settings payment.cod). */
     cod?: CodSetting;
+    /** Added to the total when paying cash on delivery (codChargeOf); 0 for none. */
+    codCharge?: number;
 }
 
 const getCartHash = (items: { productId: string; variantId?: string; quantity: number }[]) =>
@@ -71,6 +73,7 @@ export default function CheckoutView({
     stripeExpress,
     currency,
     cod,
+    codCharge = 0,
 }: CheckoutViewProps) {
     const dispatch = useAppDispatch();
     const router = useRouter();
@@ -85,7 +88,7 @@ export default function CheckoutView({
     const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(true);
     const [pickedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodId | null>(null);
     const [tatInfo, setTatInfo] = useState<{ deliveryDate?: string } | null>(null);
-    const [shipmentState, setShipmentState] = useState<{ serviceable: boolean; deliveryCharge: number | null; reason?: string }>({
+    const [shipmentState, setShipmentState] = useState<{ serviceable: boolean; deliveryCharge: number | null; shippingTax?: number; reason?: string }>({
         serviceable: true,
         deliveryCharge: null,
     });
@@ -109,7 +112,18 @@ export default function CheckoutView({
     // setting (on/off, minimum order value); a store that never saved it keeps the
     // old rule: COD only when no online gateway is active.
     const hasPaymentGateway = activeGateways.length > 0;
-    const orderTotal = (cart?.subtotal || 0) + (cart?.tax || 0) + shippingCost - (cart?.discount || 0);
+    // The cart's tax is on the items (plus any shipping tax it already knows of). A shipping charge rated at checkout
+    // brings its own tax from the server, so the total shown is the amount that will be charged.
+    const cartShippingTax = cart?.shippingTax || 0;
+    // Only a charge that differs from the cart's own shipping brings new tax; the same charge is already in the cart's tax and tax lines.
+    const shippingRatedHere = (hasDeliveryApp || hasManualShipping) && shipmentState.deliveryCharge !== null && shipmentState.deliveryCharge !== (cart?.shipping ?? 0);
+    const shippingTax = shippingRatedHere ? shipmentState.shippingTax || 0 : cartShippingTax;
+    // An API that returns itemTaxLines has the shipping tax out of the per-type lines, so it is always shown as its own row;
+    // an older one has it inside them, and only a charge rated here is shown separately.
+    const summaryTaxLines = cart?.itemTaxLines ?? cart?.taxLines;
+    const showShippingTaxRow = cart?.itemTaxLines !== undefined || shippingRatedHere;
+    const taxTotal = (cart?.tax || 0) - cartShippingTax + shippingTax;
+    const orderTotal = (cart?.subtotal || 0) + taxTotal + shippingCost - (cart?.discount || 0);
     const showCod = codAvailability(cod, hasPaymentGateway, orderTotal, shipmentProvider).offered;
     // COD is the only way to pay: chosen automatically, no method picker needed.
     const codOnly = showCod && !hasPaymentGateway;
@@ -145,7 +159,13 @@ export default function CheckoutView({
         .flatMap((a) => (a.key === "stripe" ? [...a.availableMethods, ...walletMethods] : a.availableMethods));
     // COD isn't owned by any gateway adapter - kept as a standalone entry,
     // same as before multi-gateway support, shown only when no gateway is active.
-    const codMethod: PaymentMethodOption = { id: "cod", gatewayKey: "manual", title: "Cash on delivery", subtitle: "Pay with cash" };
+    const codMethod: PaymentMethodOption = {
+        id: "cod",
+        gatewayKey: "manual",
+        title: "Cash on delivery",
+        subtitle: "Pay with cash",
+        ...(codCharge > 0 ? { amount: orderTotal + codCharge } : {}),
+    };
     const availableMethods: PaymentMethodOption[] = showCod ? [...gatewayMethods, codMethod] : gatewayMethods;
     const isPaymentLoading = activeAdapters.some((a) => a.isLoading);
     const methodToGateway = new Map(availableMethods.map((m) => [m.id, m.gatewayKey]));
@@ -172,7 +192,26 @@ export default function CheckoutView({
         setIsCalculatingShipping(true);
         try {
             const rate = await calculateShippingRate(storeId, "", cart.items, "manual");
-            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, reason: rate.reason });
+            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, shippingTax: rate.shippingTax, reason: rate.reason });
+        } finally {
+            setIsCalculatingShipping(false);
+        }
+    };
+
+    // Jeebly (UAE): quoted by the address's city, no pincode and no TAT lookup;
+    // the backend estimates delivery from the pickup date.
+    const fetchCityShippingRate = async () => {
+        if (!selectedAddress || !cart?.items.length) return;
+        const { city, state, country } = selectedAddress;
+        const key = `city:${city}|${state}|${country}`;
+        const cartHash = getCartHash(cart.items);
+        if (lastCallRef.current.cartHash === cartHash && lastCallRef.current.pincode === key) return;
+        lastCallRef.current = { cartHash, pincode: key };
+        setIsCalculatingShipping(true);
+        try {
+            const rate = await calculateShippingRate(storeId, "", cart.items, shipmentProvider, { city, state, country });
+            if (rate) setShipmentState({ serviceable: rate.serviceable, deliveryCharge: rate.deliveryCharge, shippingTax: rate.shippingTax, reason: rate.reason });
+            else setShipmentState({ serviceable: false, deliveryCharge: null, reason: "rate_api_failed" });
         } finally {
             setIsCalculatingShipping(false);
         }
@@ -180,6 +219,7 @@ export default function CheckoutView({
 
     const fetchShippingAndTAT = async () => {
         if (!selectedAddress || !cart?.items.length) return;
+        if (quotesByCity(shipmentProvider)) return fetchCityShippingRate();
         const pincode = selectedAddress.postalCode;
         const cartHash = getCartHash(cart.items);
         if (lastCallRef.current.cartHash === cartHash && lastCallRef.current.pincode === pincode) return;
@@ -193,7 +233,7 @@ export default function CheckoutView({
         try {
             const [tatRes, rateRes] = await Promise.all([getExpectedTAT(storeId, pincode), calculateShippingRate(storeId, pincode, cart.items)]);
             if (tatRes.success) setTatInfo(tatRes);
-            if (rateRes) setShipmentState({ serviceable: rateRes.serviceable, deliveryCharge: rateRes.deliveryCharge, reason: rateRes.reason });
+            if (rateRes) setShipmentState({ serviceable: rateRes.serviceable, deliveryCharge: rateRes.deliveryCharge, shippingTax: rateRes.shippingTax, reason: rateRes.reason });
             else setShipmentState({ serviceable: false, deliveryCharge: null, reason: "rate_api_failed" });
         } finally {
             setIsCalculatingShipping(false);
@@ -207,8 +247,9 @@ export default function CheckoutView({
         } else if (hasManualShipping && cart?.items.length) {
             fetchManualShippingRate();
         }
+        // City, state and country too: UAE addresses (Jeebly) have no postal code to change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hasDeliveryApp, hasManualShipping, selectedAddress?.postalCode, cart?.items]);
+    }, [hasDeliveryApp, hasManualShipping, selectedAddress?.postalCode, selectedAddress?.city, selectedAddress?.state, selectedAddress?.country, cart?.items]);
 
     const handleCreateOrder = async (paymentMethod: string, gateway?: string, gatewayRef?: Record<string, unknown>) => {
         if (!cart || !selectedAddress) return;
@@ -225,9 +266,10 @@ export default function CheckoutView({
                         paymentMethod,
                         customerNotes: "",
                         subtotal: cart.subtotal,
-                        tax: cart.tax,
+                        tax: taxTotal,
                         shipping: shippingCost,
-                        total: (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0),
+                        // The backend prices the order itself; COD adds the store's COD charge there too.
+                        total: (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0) + (paymentMethod === "cod" ? codCharge : 0),
                         estimatedDelivery: tatInfo?.deliveryDate || null,
                         ...(gateway && gatewayRef ? { gateway, gatewayRef } : {}),
                     },
@@ -292,7 +334,7 @@ export default function CheckoutView({
         }
 
         if (!user || !method) return;
-        const totalAmount = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
+        const totalAmount = (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0);
         if (totalAmount <= 0) return;
 
         // A wallet pays from Stripe's own button, which replaces this one when it's chosen.
@@ -437,7 +479,9 @@ export default function CheckoutView({
         );
     }
 
-    const total = (cart.subtotal || 0) + (cart.tax || 0) + shippingCost - (cart.discount || 0);
+    const total = (cart.subtotal || 0) + taxTotal + shippingCost - (cart.discount || 0);
+    // Cash on delivery chosen (or the only way to pay): the summary shows the store's COD charge.
+    const codFee = codOnly || selectedPaymentMethod === "cod" ? codCharge : 0;
     const shippingDisplay = hasDeliveryApp || hasManualShipping ? shipmentState.deliveryCharge : shippingCost;
     // The wallet rows need Stripe.js, the store currency and a positive total to learn
     // whether this device can use them; paying also needs a signed-in shopper and an address.
@@ -566,11 +610,15 @@ export default function CheckoutView({
                     <div className="sticky top-8 flex flex-col gap-4">
                         <PaymentSummaryCard
                             subtotal={cart.subtotal}
-                            tax={cart.tax}
+                            tax={taxTotal}
                             taxLabel={cart.taxLabel}
+                            taxLines={summaryTaxLines}
+                            shippingTax={showShippingTaxRow ? shippingTax : 0}
+                            discount={cart.discount}
                             shipping={shippingDisplay}
                             shippingCalculating={isCalculatingShipping}
-                            total={total}
+                            codCharge={codFee}
+                            total={total + codFee}
                         />
                         {walletButton ? (
                             // A chosen wallet pays from Stripe's own button, in place of "Place order".
@@ -599,6 +647,7 @@ export default function CheckoutView({
             saving={savingAddress}
             onBack={() => setView(editingAddress ? "select-address" : "checkout")}
             onSave={handleSaveAddress}
+            {...(defaultAddressCountry(shipmentProvider) ? { defaultCountry: defaultAddressCountry(shipmentProvider) } : {})}
         />
     );
 

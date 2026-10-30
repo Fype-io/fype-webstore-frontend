@@ -8,15 +8,37 @@ import { reverseGeocode } from "@/lib/reverseGeocode";
 import { splitName } from "./checkoutUtils";
 import { countrySelectOptions, toCountryIso } from "./ui/countries";
 import { PhoneInput } from "./ui/PhoneInput";
+import { PlaceSearchSelect } from "./ui/PlaceSearchSelect";
 import { SearchableSelect } from "./ui/SearchableSelect";
 import CheckoutHeader from "./CheckoutHeader";
 
-function toStateIso(countryIso: string, isoOrName: string): string {
+// Letters only, without a trailing "emirate": "Abu Dhabi" (a geocoder) matches "Abu Dhabi Emirate"
+// (this list), "Ras Al Khaimah" matches "Ras al-Khaimah".
+const stateKey = (name: string) => name.toLowerCase().replace(/[^a-z]/g, "").replace(/emirate$/, "");
+
+export function toStateIso(countryIso: string, isoOrName: string): string {
     if (!countryIso || !isoOrName) return "";
     const states = State.getStatesOfCountry(countryIso);
-    const match = states.find((s) => s.isoCode === isoOrName || s.name.toLowerCase() === isoOrName.toLowerCase());
+    const match =
+        states.find((s) => s.isoCode === isoOrName || s.name.toLowerCase() === isoOrName.toLowerCase()) ??
+        states.find((s) => stateKey(s.name) === stateKey(isoOrName));
     return match?.isoCode ?? "";
 }
+
+// UAE addresses (Jeebly books by emirate and area): the State list is the
+// emirates, labelled "Emirate", and the City field holds the area. Stored as
+// before (state = emirate, city = area), so nothing reading addresses changes.
+const UAE_PLACEHOLDERS = {
+    house: "Flat or villa no., building name",
+    street: "Street and a landmark",
+    state: "Emirate",
+    city: "Area",
+};
+const UAE_HINTS: Record<"house" | "street" | "city", string> = {
+    house: "e.g. Flat 1204, Marina Tower",
+    street: "e.g. Street 12, near Spinneys",
+    city: "Your area or community, e.g. Al Barsha, JLT, Ruwais",
+};
 
 function stateName(countryIso: string, iso: string): string {
     if (!iso) return "";
@@ -28,13 +50,17 @@ interface AddAddressPanelProps {
     saving?: boolean;
     onBack: () => void;
     onSave: (address: Omit<Address, "_id" | "addressId">) => Promise<void>;
+    // ISO country a new address starts in (e.g. "AE" for a Jeebly store); an
+    // address being edited keeps its own.
+    defaultCountry?: string;
 }
 
-export default function AddAddressPanel({ initial, saving, onBack, onSave }: AddAddressPanelProps) {
+export default function AddAddressPanel({ initial, saving, onBack, onSave, defaultCountry }: AddAddressPanelProps) {
+    const startCountry = toCountryIso(initial?.country || defaultCountry || "");
     const [house, setHouse] = useState(initial?.addressLine1 || "");
     const [area, setArea] = useState(initial?.addressLine2 || "");
-    const [country, setCountry] = useState(toCountryIso(initial?.country || ""));
-    const [state, setState] = useState(() => toStateIso(toCountryIso(initial?.country || ""), initial?.state || ""));
+    const [country, setCountry] = useState(startCountry);
+    const [state, setState] = useState(() => toStateIso(startCountry, initial?.state || ""));
     const [city, setCity] = useState(initial?.city || "");
     const [pincode, setPincode] = useState(initial?.postalCode || "");
     const [name, setName] = useState([initial?.firstName, initial?.lastName].filter(Boolean).join(" "));
@@ -45,15 +71,21 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
     const [lng, setLng] = useState<number | undefined>(initial?.longitude);
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
+    const [focused, setFocused] = useState<"house" | "street" | "city" | null>(null);
 
     const availableStates = country ? State.getStatesOfCountry(country) : [];
+    const isUae = country === "AE";
+    const hint = (field: "house" | "street" | "city") =>
+        isUae && focused === field ? <p className="-mt-2 sm:-mt-4 text-xs text-gray-500">{UAE_HINTS[field]}</p> : null;
+    // UAE addresses have no postal code (the backend accepts them without one).
+    const pincodeOptional = country === "AE";
     const canSave =
         house.trim() !== "" &&
         area.trim() !== "" &&
         country.trim() !== "" &&
         (availableStates.length === 0 || state.trim() !== "") &&
         city.trim() !== "" &&
-        pincode.trim() !== "" &&
+        (pincodeOptional || pincode.trim() !== "") &&
         name.trim() !== "" &&
         isPhoneValid;
 
@@ -74,16 +106,17 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
                     }
                     setLat(result.latitude);
                     setLng(result.longitude);
-                    if (result.country) {
-                        const iso = toCountryIso(result.country);
-                        setCountry(iso);
-                        if (result.state) setState(toStateIso(iso, result.state));
-                    } else if (result.state) {
-                        setState(toStateIso(country, result.state));
+                    const iso = result.country ? toCountryIso(result.country) : country;
+                    if (result.country) setCountry(iso);
+                    if (result.state) setState(toStateIso(iso, result.state));
+                    if (iso === "AE") {
+                        // The area (e.g. "Al Barsha") goes in Area; the emirate was picked above.
+                        if (result.area || result.city) setCity(result.area || result.city);
+                    } else {
+                        if (result.city) setCity(result.city);
+                        if (result.area && !area) setArea(result.area);
                     }
-                    if (result.city) setCity(result.city);
                     if (result.pincode) setPincode(result.pincode);
-                    if (result.area && !area) setArea(result.area);
                     if (result.house && !house) setHouse(result.house);
                 } catch {
                     setLocationError("Failed to fetch location details.");
@@ -154,15 +187,21 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
                 <input
                     value={house}
                     onChange={(e) => setHouse(e.target.value)}
-                    placeholder="House/ Flat/ Office No."
+                    onFocus={() => setFocused("house")}
+                    onBlur={() => setFocused(null)}
+                    placeholder={isUae ? UAE_PLACEHOLDERS.house : "House/ Flat/ Office No."}
                     className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
                 />
+                {hint("house")}
                 <input
                     value={area}
                     onChange={(e) => setArea(e.target.value)}
-                    placeholder="Area / Street / Locality"
+                    onFocus={() => setFocused("street")}
+                    onBlur={() => setFocused(null)}
+                    placeholder={isUae ? UAE_PLACEHOLDERS.street : "Area / Street / Locality"}
                     className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
                 />
+                {hint("street")}
                 <div className="flex gap-4">
                     <SearchableSelect
                         options={countrySelectOptions()}
@@ -176,28 +215,37 @@ export default function AddAddressPanel({ initial, saving, onBack, onSave }: Add
                         className="w-full"
                     />
                     <SearchableSelect
-                        options={availableStates.map((s) => ({ label: s.name, value: s.isoCode }))}
+                        options={availableStates.map((s) => ({ label: isUae ? s.name.replace(/ Emirate$/, "") : s.name, value: s.isoCode }))}
                         value={state}
                         onChange={(s) => {
                             setState(s);
                             setCity("");
                         }}
-                        placeholder="State"
+                        placeholder={isUae ? UAE_PLACEHOLDERS.state : "State"}
                         className="w-full"
                         disabled={!country || availableStates.length === 0}
                     />
                 </div>
                 <div className="flex gap-4">
-                    <input
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="City"
-                        className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
-                    />
+                    <div className="w-full flex flex-col gap-4 sm:gap-6">
+                        {/* Picked from Google's list (UAE: the area in the emirate; else the state's cities). */}
+                        <PlaceSearchSelect
+                            kind={isUae ? "area" : "city"}
+                            country={country}
+                            state={state}
+                            value={city}
+                            onChange={setCity}
+                            onFocus={() => setFocused("city")}
+                            onBlur={() => setFocused(null)}
+                            placeholder={isUae ? UAE_PLACEHOLDERS.city : "City"}
+                            disabled={availableStates.length > 0 && !state}
+                        />
+                        {hint("city")}
+                    </div>
                     <input
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
-                        placeholder="Pincode"
+                        placeholder={pincodeOptional ? "Postal code (optional)" : "Pincode"}
                         className="w-full pb-3 text-base text-black placeholder-gray-500 border-b border-gray-200 focus:border-black focus:outline-none transition-colors"
                     />
                 </div>

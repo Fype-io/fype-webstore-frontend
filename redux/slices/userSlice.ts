@@ -73,6 +73,12 @@ export interface Cart {
     totalCompareAtPrice?: number;
     tax: number;
     taxLabel?: string;
+    /** The tax split by type, shipping tax included in the amounts; absent from an older API. */
+    taxLines?: TaxLine[];
+    /** The same split for the items alone (no tax on shipping); absent from an older API. */
+    itemTaxLines?: TaxLine[];
+    /** The part of `tax` that is on shipping. */
+    shippingTax?: number;
     shipping: number;
     discount?: number;
     total: number;
@@ -91,23 +97,43 @@ export interface OrderItem {
 }
 
 export interface Shipment {
-    status: "pending" | "shipped" | "in_transit" | "delivered" | "return_in_progress" | "returned" | "cancelled";
+    /** Backend SHIPMENT_STATUSES; return_in_progress / returned are legacy names of the rto_* ones. */
+    status:
+        | "pending" | "shipped" | "in_transit" | "out_for_delivery" | "delivery_failed" | "delivered"
+        | "rto_in_progress" | "rto_complete" | "cancelled" | "return_in_progress" | "returned";
     awbNumber?: string;
     carrier?: string;
     provider?: string;
     items: OrderItem[];
 }
 
+/** One line of an order's or cart's tax: CGST/SGST/IGST for India, otherwise the store's tax name (VAT, GST ...). */
+export interface TaxLine {
+    type: string;
+    rate: number;
+    amount: number;
+}
+
 export interface Order {
     orderId: string;
     orderNumber: string;
-    status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded";
+    /** Backend ORDER_STATUSES (lib/order-status.ts shows them); return_in_progress / returned are legacy names. */
+    status:
+        | "pending" | "confirmed" | "shipped" | "in_transit" | "out_for_delivery" | "delivery_failed" | "delivered"
+        | "partially_delivered" | "return_pending" | "return_in_transit" | "return_complete" | "partially_returned"
+        | "rto_in_progress" | "rto_complete" | "cancelled" | "refunded" | "return_in_progress" | "returned";
     items: OrderItem[];
     subtotal: number;
     tax: number;
     shipping: number;
     discount: number;
     total: number;
+    /** The order's tax split by type (snapshot); absent from an older API. */
+    tax_lines?: TaxLine[];
+    /** The items' tax by type, without the tax on shipping; absent from an older API. */
+    item_tax_lines?: TaxLine[];
+    /** The tax on shipping, shown as its own row; absent from an older API. */
+    shipping_tax?: number;
     /** Currency the order was placed in (orders from before PR1 have none). */
     currency?: string | null;
     paymentStatus: "pending" | "completed" | "paid" | "unpaid" | "cod" | "failed" | "refunded" | "partially_refunded";

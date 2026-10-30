@@ -144,7 +144,7 @@ export default async function ProductDetailsPage({ params, searchParams }: Produ
         const detail = fetched.product;
         const variantPrices = detail.hasVariants ? variants.map((variant) => variant.price ?? 0) : [];
         const shown = (amount: number) =>
-            Number(calculateProductTax(amount, shop.settings?.tax, { applied: detail.price.taxApplied, rate: detail.price.taxRate }).displayPrice);
+            Number(calculateProductTax(amount, shop.settings?.tax, { applied: detail.price.taxApplied, rate: detail.price.taxRate, effectiveRate: detail.price.effectiveTaxRate }).displayPrice);
         const lowest = variantPrices.length ? Math.min(...variantPrices) : detail.price.price;
         const highest = variantPrices.length ? Math.max(...variantPrices) : detail.price.price;
         const jsonLd = buildProductJsonLd({

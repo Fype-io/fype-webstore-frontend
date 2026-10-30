@@ -7,6 +7,7 @@ import ShopNotFound from "@/components/shared/ShopNotFound";
 import CheckoutView from "@/components/checkout/CheckoutView";
 import { getRequestHost } from "@/lib/request-host";
 import { resolveShipmentProvider } from "@/lib/shipment-provider";
+import { codChargeOf } from "@/components/checkout/checkoutUtils";
 
 export const metadata: Metadata = { title: "Checkout" };
 
@@ -49,6 +50,7 @@ export default async function CheckoutPage() {
                 }
                 currency={shop.settings?.currency ?? undefined}
                 cod={shop.settings?.payment?.cod}
+                codCharge={codChargeOf(shop, shipmentProvider)}
             />
         </>
     );

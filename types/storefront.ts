@@ -130,6 +130,9 @@ export interface ShopIdentity {
             dtdc?: { enabled?: boolean };
             delhivery?: { enabled?: boolean };
             shiprocket?: { enabled?: boolean };
+            // UAE courier: delivers by city, no pincode.
+            // codCharge: added to a cash-on-delivery order's total (0 or missing: none).
+            jeebly?: { enabled?: boolean; deliveryType?: "Same Day" | "Next Day"; codCharge?: number };
             manualShipping?: { global?: boolean; shippingRate?: number };
         };
         seo?: {
@@ -158,6 +161,8 @@ export interface StorefrontProduct {
     hasVariants: boolean;
     taxApplied?: boolean;
     taxRate?: number;
+    /** What the product is taxed at under the store's tax settings (the server's answer); absent from an older API. */
+    effectiveTaxRate?: number;
     // Drives ProductCard's "New" badge — optional since older/other feed
     // endpoints may not always populate it.
     createdAt?: string;
@@ -228,6 +233,10 @@ export interface ProductVariant {
     image: string[];
     available: boolean;
     inventory: { available: number; trackQuantity: boolean };
+    /** The variant's own oversell switch (the backend already resolves it against the product's). */
+    continueSelling?: boolean;
+    /** What this variant is taxed at under the store's tax settings (the server's answer). */
+    effectiveTaxRate?: number;
 }
 
 export interface VariantOptions {
@@ -243,6 +252,8 @@ export interface ProductDetail {
     images: string[];
     hasVariants: boolean;
     continueSellWhenOutOfStock: boolean;
+    /** Product-level oversell switch as the product API sends it (top level, also for products with variants). */
+    continueSelling?: boolean;
     skuCode: string;
     barCode: string;
     productWeight?: number;
@@ -252,6 +263,7 @@ export interface ProductDetail {
         compareAtPrice: number;
         taxApplied: boolean;
         taxRate?: number;
+        effectiveTaxRate?: number;
     };
     display: {
         vendor?: string;
@@ -259,6 +271,7 @@ export interface ProductDetail {
     };
     inventory: {
         available: number;
+        trackQuantity?: boolean;
         continueSelling?: boolean;
     } | null;
     createdAt?: string;

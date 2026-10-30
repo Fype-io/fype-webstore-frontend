@@ -11,6 +11,7 @@ import type { ProductDetail, ProductVariant, TaxSettings } from "@/types/storefr
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { productHref } from "@/lib/product-url";
+import { canBuy, productContinueSelling } from "@/lib/stock";
 
 type FeaturedProductDetail = ProductDetail & { variants?: ProductVariant[] };
 
@@ -112,14 +113,17 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
     const prices = variants.map((v) => v.price ?? 0);
     const minPrice = displayProduct.hasVariants && prices.length ? Math.min(...prices) : displayProduct.price.price;
     const compareAtPrice = displayProduct.hasVariants ? 0 : displayProduct.price.compareAtPrice;
-    const { displayPrice } = calculateProductTax(minPrice, globalTax, { applied: displayProduct.price.taxApplied, rate: displayProduct.price.taxRate });
+    const { displayPrice } = calculateProductTax(minPrice, globalTax, { applied: displayProduct.price.taxApplied, rate: displayProduct.price.taxRate, effectiveRate: displayProduct.price.effectiveTaxRate });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(compareAtPrice, globalTax, {
         applied: displayProduct.price.taxApplied,
-        rate: displayProduct.price.taxRate,
+        rate: displayProduct.price.taxRate, effectiveRate: displayProduct.price.effectiveTaxRate,
     });
 
-    const available = displayProduct.inventory?.available ?? 0;
-    const inStock = available > 0 || displayProduct.continueSellWhenOutOfStock || !!displayProduct.inventory?.continueSelling;
+    const inStock = canBuy({
+        available: displayProduct.inventory?.available,
+        trackQuantity: displayProduct.inventory?.trackQuantity,
+        continueSelling: productContinueSelling(displayProduct),
+    });
 
     // Show the quick-cart UI (quantity + primary button) even in editor
     // preview so merchants can see layout; guard the actual add-to-cart

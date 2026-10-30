@@ -9,6 +9,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, CheckCircle2, Mail, Phone, Send, X } from "lucide-react";
 import { PhoneInput } from "@/components/checkout/ui/PhoneInput";
 import { splitName } from "@/components/checkout/checkoutUtils";
+import { fillOtp } from "@/components/shared/otpInput";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { sendOTP, verifyOTP, completeRegistration, clearAuthError, getPlatform } from "@/redux/slices/userSlice";
 import { isEditorPreview } from "@/lib/editor-preview";
@@ -242,8 +243,25 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
         }
     };
 
+    // A pasted code, or an autofill that puts the whole code in one box: spread it over the boxes.
+    const applyPastedOtp = (index: number, text: string) => {
+        const filled = fillOtp(otp, index, text);
+        if (!filled) return;
+        setOtp(filled.next);
+        setLocalError("");
+        if (filled.complete) {
+            inputRefs.current[filled.focusIndex]?.blur();
+            void handleVerifyOTP(filled.next.join(""));
+        } else {
+            inputRefs.current[filled.focusIndex]?.focus();
+        }
+    };
+
     const handleOtpChange = (index: number, value: string) => {
-        if (value.length > 1) value = value.slice(-1);
+        if (value.length > 1) {
+            applyPastedOtp(index, value);
+            return;
+        }
         if (!/^\d*$/.test(value)) return;
         const next = [...otp];
         next[index] = value;
@@ -473,6 +491,12 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
                                         value={digit}
                                         onChange={(e) => handleOtpChange(index, e.target.value)}
                                         onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                        onPaste={(e) => {
+                                            e.preventDefault();
+                                            applyPastedOtp(index, e.clipboardData.getData("text"));
+                                        }}
+                                        // Typing over a filled box replaces its digit, so only a paste/autofill can bring more than one character.
+                                        onFocus={(e) => e.target.select()}
                                         disabled={authLoading}
                                         className="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-gray-200 rounded-[12px] text-center text-xl font-bold text-gray-900 outline-none focus:border-gray-900 transition-all shadow-sm disabled:bg-gray-50"
                                     />

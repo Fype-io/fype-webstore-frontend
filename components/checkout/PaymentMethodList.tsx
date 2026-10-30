@@ -58,7 +58,7 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                                 <span className="text-gray-500 text-[13px] sm:text-sm font-medium">{method.subtitle}</span>
                             </div>
                             <div className="flex items-center gap-3 shrink-0 ml-2">
-                                <span className="font-semibold text-gray-900 text-[15px] sm:text-[16px]">{format(total)}</span>
+                                <span className="font-semibold text-gray-900 text-[15px] sm:text-[16px]">{format(method.amount ?? total)}</span>
                                 <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
                                     {selected === method.id && <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />}
                                 </div>
@@ -97,7 +97,7 @@ export default function PaymentMethodList({ total, methods, selected, onSelect, 
                         <span className="text-gray-500 text-[13px] sm:text-sm font-medium">{method.subtitle}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
-                        <span className="font-semibold text-gray-900 text-[15px] sm:text-[16px]">{format(total)}</span>
+                        <span className="font-semibold text-gray-900 text-[15px] sm:text-[16px]">{format(method.amount ?? total)}</span>
                         <ChevronRight className="w-[18px] h-[18px] text-gray-400" size={18} />
                     </div>
                 </button>

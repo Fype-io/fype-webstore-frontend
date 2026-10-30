@@ -11,7 +11,7 @@ import { useRazorpayAdapter } from "@/hooks/useRazorpayAdapter";
 import { useStripeAdapter, type StripeCheckoutAdapter } from "@/hooks/useStripeAdapter";
 import type { CheckoutGatewayAdapter } from "@/types/checkoutGateway";
 import { fetchStockForCartItems } from "@/lib/stock-api";
-import { calculateShippingRate } from "@/lib/shipping-api";
+import { calculateShippingRate, getExpectedTAT } from "@/lib/shipping-api";
 import { deleteApi, getApi, postApi, putApi } from "@/lib/client-api";
 import { AxiosError, type AxiosResponse } from "axios";
 
@@ -116,7 +116,7 @@ const readyStripe: StripeCheckoutAdapter = {
 
 type UserState = ReturnType<typeof userReducer>;
 
-function buildStore() {
+function buildStore(cartOverride: Record<string, unknown> = {}) {
     return configureStore({
         reducer: { user: userReducer },
         preloadedState: {
@@ -155,6 +155,7 @@ function buildStore() {
                     discount: 0,
                     total: 100,
                     itemCount: 1,
+                    ...cartOverride,
                 },
                 // Remaining UserState fields are left out - this test only
                 // provides what CheckoutView actually reads - and `user` uses an
@@ -169,8 +170,8 @@ function buildStore() {
 // is a validation error on click), so a test that orders waits for the address.
 const addressLoaded = async () => expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
 
-function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>> = {}) {
-    const store = buildStore();
+function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>> = {}, cartOverride: Record<string, unknown> = {}) {
+    const store = buildStore(cartOverride);
     return render(
         <Provider store={store}>
             <CheckoutView
@@ -661,5 +662,147 @@ describe("CheckoutView - Google Pay / Apple Pay as payment methods", () => {
         act(() => walletProps.button!.onError("The price changed. Please review your order and try again."));
 
         expect(await screen.findByText("The price changed. Please review your order and try again.")).toBeInTheDocument();
+    });
+});
+
+// A UAE store shipping with Jeebly: addresses have no postal code, so the rate
+// is asked for by city, state and country, and there's no TAT lookup (the
+// backend estimates delivery from the pickup date).
+describe("CheckoutView - Jeebly (quoted by city)", () => {
+    const UAE_ADDRESS = {
+        addressId: "addr-ae",
+        firstName: "Aisha",
+        lastName: "Test",
+        phoneNumber: "+971505186403",
+        addressLine1: "Villa 43",
+        addressLine2: "Street 12",
+        city: "Al Barsha",
+        state: "Dubai",
+        country: "AE",
+        postalCode: "",
+        isDefault: true,
+    };
+    const addressesResponse = (address: object) => ({ data: { success: true, data: { addresses: [address] } } }) as unknown as AxiosResponse;
+    const rate = (r: object) => r as Awaited<ReturnType<typeof calculateShippingRate>>;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(notReadyRazorpay);
+        vi.mocked(useStripeAdapter).mockReturnValue(notReadyStripe);
+        vi.mocked(getApi).mockResolvedValue(addressesResponse(UAE_ADDRESS));
+    });
+    afterEach(() => {
+        // Back to the Indian address the rest of this file uses.
+        vi.mocked(getApi).mockResolvedValue(addressesResponse(TEST_ADDRESS));
+        vi.mocked(calculateShippingRate).mockResolvedValue(null);
+    });
+
+    it("asks for the rate by city, without a pincode or a TAT lookup", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly" });
+
+        await waitFor(() =>
+            expect(calculateShippingRate).toHaveBeenCalledWith("store-1", "", expect.any(Array), "jeebly", { city: "Al Barsha", state: "Dubai", country: "AE" })
+        );
+        expect(getExpectedTAT).not.toHaveBeenCalled();
+        expect(screen.queryByText(/not serviceable|don't deliver/)).not.toBeInTheDocument();
+        // Jeebly collects cash, so COD is offered with no gateway.
+        expect(await screen.findByText("Cash on delivery")).toBeInTheDocument();
+    });
+
+    it("tells the shopper when Jeebly doesn't deliver to the address's area", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue(
+            rate({ serviceable: false, deliveryCharge: null, estimatedDays: null, reason: "not_serviceable", source: "api" })
+        );
+
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly" });
+
+        expect(await screen.findByText(/We don't deliver to this area yet/)).toBeInTheDocument();
+    });
+
+    describe("the store's COD charge", () => {
+        const summaryTotal = () => screen.getByText("Payment summary").closest("section")!.textContent;
+
+        it("COD as the only way to pay: the summary adds the charge to the total", async () => {
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: [], cod: { enabled: true, minOrderValue: null }, codCharge: 5 });
+
+            expect(await screen.findByText("COD charge")).toBeInTheDocument();
+            // 100 subtotal + 15 shipping + 5 COD charge
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*120/));
+        });
+
+        it("paying online: no charge until COD is chosen, and the COD row shows the higher amount", async () => {
+            const user = userEvent.setup();
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: ["razorpay"], cod: { enabled: true, minOrderValue: null }, codCharge: 5 });
+
+            const codRow = (await screen.findAllByText("Cash on delivery"))[0]!.closest("label")!;
+            await waitFor(() => expect(codRow.textContent).toMatch(/120/));
+            expect(screen.queryByText("COD charge")).not.toBeInTheDocument();
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*115/));
+
+            await user.click(codRow);
+            expect(await screen.findByText("COD charge")).toBeInTheDocument();
+            expect(summaryTotal()).toMatch(/Total\D*120/);
+        });
+
+        it("no charge set: nothing added", async () => {
+            vi.mocked(calculateShippingRate).mockResolvedValue(rate({ serviceable: true, deliveryCharge: 15, estimatedDays: 1, source: "api" }));
+            renderCheckout({ hasDeliveryApp: true, shipmentProvider: "jeebly", activeGateways: [], cod: { enabled: true, minOrderValue: null } });
+            await waitFor(() => expect(summaryTotal()).toMatch(/Total\D*115/));
+            expect(screen.queryByText("COD charge")).not.toBeInTheDocument();
+        });
+    });
+});
+
+describe("CheckoutView - tax on shipping is in the total shown", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(fetchStockForCartItems).mockResolvedValue({});
+        vi.mocked(useRazorpayAdapter).mockReturnValue(asRazorpay(notReadyRazorpay));
+        vi.mocked(useStripeAdapter).mockReturnValue(asStripe(notReadyStripe));
+    });
+
+    it("a rated delivery charge brings its tax: total = items 100 + delivery 60 + tax on delivery 3", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 60, shippingTax: 3 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout({ hasDeliveryApp: true, shipmentProvider: "dtdc", activeGateways: [] });
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹163").length).toBeGreaterThan(0));
+        expect(screen.queryAllByText("Tax on shipping").length).toBe(0); // one total row without the server's tax lines
+    });
+
+    it("shipping the cart already priced (same charge) keeps the cart's tax split and adds nothing twice", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 15, shippingTax: 0.75 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout(
+            { hasManualShipping: true, shipmentProvider: "manual", activeGateways: [] },
+            { subtotal: 200, tax: 10.75, shipping: 15, shippingTax: 0.75, taxLabel: "VAT", taxLines: [{ type: "VAT", rate: 5, amount: 10.75 }], total: 225.75 }
+        );
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹225.75").length).toBeGreaterThan(0));
+        expect(screen.getAllByText("VAT (5%)").length).toBeGreaterThan(0);
+        expect(screen.queryAllByText("VAT on shipping").length).toBe(0);
+    });
+
+    it("an API that sends itemTaxLines shows the item tax at its own rate and the shipping tax as its own row", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 15, shippingTax: 0.75 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout(
+            { hasManualShipping: true, shipmentProvider: "manual", activeGateways: [] },
+            {
+                subtotal: 200, tax: 12.75, shipping: 15, shippingTax: 0.75, taxLabel: "VAT", total: 227.75,
+                taxLines: [{ type: "VAT", rate: 6, amount: 12.75 }],
+                itemTaxLines: [{ type: "VAT", rate: 6, amount: 12 }],
+            }
+        );
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹227.75").length).toBeGreaterThan(0));
+        expect(screen.getAllByText("VAT (6%)").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("₹12").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("VAT on shipping").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("₹0.75").length).toBeGreaterThan(0);
     });
 });

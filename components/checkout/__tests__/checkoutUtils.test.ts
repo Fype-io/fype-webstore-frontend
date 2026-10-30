@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { codAvailability, formatStoreMoney } from "../checkoutUtils";
-import { providerSupportsCod, resolveShipmentProvider } from "@/lib/shipment-provider";
+import { codAvailability, codChargeOf, formatStoreMoney } from "../checkoutUtils";
+import { defaultAddressCountry, providerSupportsCod, quotesByCity, resolveShipmentProvider } from "@/lib/shipment-provider";
 
 describe("codAvailability", () => {
     it("never saved: COD only when no gateway is active", () => {
@@ -40,10 +40,31 @@ describe("resolveShipmentProvider (same rule as crmApp's shippingQuote)", () => 
         expect(resolveShipmentProvider(null)).toBe("manual");
     });
 
-    it("only DTDC and Delhivery collect cash on delivery", () => {
+    it("Jeebly after DTDC and Delhivery, when active and enabled", () => {
+        expect(resolveShipmentProvider(shop({ active: ["jeebly"], jeebly: { enabled: true } }))).toBe("jeebly");
+        expect(resolveShipmentProvider(shop({ active: ["delhivery", "jeebly"], delhivery: { enabled: true }, jeebly: { enabled: true } }))).toBe("delhivery");
+        expect(resolveShipmentProvider(shop({ active: ["jeebly"], jeebly: { enabled: false } }))).toBe("manual");
+    });
+
+    it("the couriers collect cash on delivery; manual shipping doesn't", () => {
         expect(providerSupportsCod("dtdc")).toBe(true);
         expect(providerSupportsCod("delhivery")).toBe(true);
+        expect(providerSupportsCod("jeebly")).toBe(true);
         expect(providerSupportsCod("manual")).toBe(false);
+    });
+
+    it("a Jeebly store's new addresses start in the UAE; other stores leave it to the shopper", () => {
+        expect(defaultAddressCountry("jeebly")).toBe("AE");
+        expect(defaultAddressCountry("dtdc")).toBeUndefined();
+        expect(defaultAddressCountry("delhivery")).toBeUndefined();
+        expect(defaultAddressCountry("manual")).toBeUndefined();
+    });
+
+    it("only Jeebly quotes by city instead of a pincode", () => {
+        expect(quotesByCity("jeebly")).toBe(true);
+        expect(quotesByCity("dtdc")).toBe(false);
+        expect(quotesByCity("delhivery")).toBe(false);
+        expect(quotesByCity("manual")).toBe(false);
     });
 });
 
@@ -53,5 +74,24 @@ describe("formatStoreMoney", () => {
         expect(formatStoreMoney(25.5, "USD")).toBe("$25.5");
         expect(formatStoreMoney(100, "AED")).toMatch(/^AED\s100$/);
         expect(formatStoreMoney(500, null)).toBe("₹500");
+    });
+});
+
+describe("codChargeOf", () => {
+    const shop = (codCharge?: unknown) => ({ settings: { logistics: { jeebly: { codCharge } } } }) as never;
+
+    it("is Jeebly's COD charge per order", () => {
+        expect(codChargeOf(shop(5), "jeebly")).toBe(5);
+    });
+
+    it.each([
+        ["another courier", shop(5), "dtdc"],
+        ["no charge set", shop(undefined), "jeebly"],
+        ["a zero charge", shop(0), "jeebly"],
+        ["a negative charge", shop(-1), "jeebly"],
+        ["text", shop("abc"), "jeebly"],
+        ["no shop", null, "jeebly"],
+    ])("is 0 for %s", (_label, s, provider) => {
+        expect(codChargeOf(s, provider)).toBe(0);
     });
 });

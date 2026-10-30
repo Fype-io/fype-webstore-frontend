@@ -5,6 +5,8 @@ import type { CartItem } from "@/redux/slices/userSlice";
 export interface CalculateShippingRateResponse {
     serviceable: boolean;
     deliveryCharge: number | null;
+    /** Tax on the delivery charge (0 unless the store charges tax on shipping); absent from an older API. */
+    shippingTax?: number;
     estimatedDays: string | null;
     reason?: string;
     source: "cache" | "api";
@@ -44,11 +46,19 @@ export async function checkPincodeServiceability(
     }
 }
 
+/** Where a city-based courier (Jeebly) delivers: the address's city, state (emirate) and country. */
+export interface ShippingDestination {
+    city?: string;
+    state?: string;
+    country?: string;
+}
+
 export async function calculateShippingRate(
     storeId: string,
     destinationPincode: string,
     items: CartItem[],
-    provider?: string
+    provider?: string,
+    destination?: ShippingDestination
 ): Promise<CalculateShippingRateResponse | null> {
     try {
         const itemsPayload = items.map((item) => ({
@@ -63,6 +73,7 @@ export async function calculateShippingRate(
                 destinationPincode,
                 items: itemsPayload,
                 ...(provider ? { provider } : {}),
+                ...(destination ? { destination } : {}),
             },
             { withCredentials: true }
         );

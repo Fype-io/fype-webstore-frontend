@@ -10,6 +10,7 @@ import { addToCart, addToGuestCart, addToWishlist, fetchCart, fetchGuestCart, re
 import type { ProductDetail, ProductVariant, StorefrontProduct, TaxSettings, VariantOptions } from "@/types/storefront";
 import { productHref } from "@/lib/product-url";
 import { galleryImages } from "@/lib/variant-selection";
+import { canBuy, productContinueSelling, variantContinueSelling } from "@/lib/stock";
 
 interface ProductDetailsViewProps {
     product: ProductDetail;
@@ -66,15 +67,15 @@ export default function ProductDetailsView({
     }, [selectedOptions, variants, hasVariants]);
 
     const displayData = useMemo(() => {
-        const continueSelling = product.inventory?.continueSelling ?? product.continueSellWhenOutOfStock ?? false;
         if (hasVariants && selectedVariant) {
             return {
                 price: selectedVariant.price,
                 compareAtPrice: selectedVariant.compareAtPrice,
                 taxApplied: product.price.taxApplied,
                 taxRate: product.price.taxRate,
+                effectiveTaxRate: selectedVariant.effectiveTaxRate ?? product.price.effectiveTaxRate,
                 images: galleryImages(product.images, selectedVariant.image, variantChosen),
-                available: (selectedVariant.inventory?.available ?? 0) > 0 || continueSelling,
+                available: canBuy({ available: selectedVariant.inventory?.available, trackQuantity: selectedVariant.inventory?.trackQuantity, continueSelling: variantContinueSelling(selectedVariant, product) }),
             };
         }
         return {
@@ -82,8 +83,9 @@ export default function ProductDetailsView({
             compareAtPrice: product.price.compareAtPrice,
             taxApplied: product.price.taxApplied,
             taxRate: product.price.taxRate,
+            effectiveTaxRate: product.price.effectiveTaxRate,
             images: product.images ?? [],
-            available: (product.inventory?.available ?? 0) > 0 || continueSelling,
+            available: canBuy({ available: product.inventory?.available, trackQuantity: product.inventory?.trackQuantity, continueSelling: productContinueSelling(product) }),
         };
     }, [hasVariants, selectedVariant, product, variantChosen]);
 
@@ -132,11 +134,11 @@ export default function ProductDetailsView({
 
     const { displayPrice } = calculateProductTax(displayData.price, globalTax, {
         applied: displayData.taxApplied,
-        rate: displayData.taxRate,
+        rate: displayData.taxRate, effectiveRate: displayData.effectiveTaxRate,
     });
     const { displayPrice: compareDisplayPrice } = calculateProductTax(displayData.compareAtPrice, globalTax, {
         applied: displayData.taxApplied,
-        rate: displayData.taxRate,
+        rate: displayData.taxRate, effectiveRate: displayData.effectiveTaxRate,
     });
 
     return (

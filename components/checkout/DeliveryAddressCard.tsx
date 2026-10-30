@@ -74,7 +74,11 @@ export default function DeliveryAddressCard({
                     {tatInfo && <p className="text-[13px] text-gray-600 font-medium mt-1">Estimated delivery: {tatInfo}</p>}
                     {notServiceable && (
                         <div className="mt-3 bg-red-50 border border-red-100 rounded-lg p-3">
-                            <p className="text-xs text-red-600 font-medium">This pincode is not serviceable. Please change your delivery address.</p>
+                            <p className="text-xs text-red-600 font-medium">
+                                {selected.postalCode
+                                    ? "This pincode is not serviceable. Please change your delivery address."
+                                    : "We don't deliver to this area yet. Please change your delivery address."}
+                            </p>
                         </div>
                     )}
                 </div>

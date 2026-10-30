@@ -1,6 +1,6 @@
 "use client";
 
-import { taxLineLabel } from "@/utils/taxCalculator";
+import { shippingTaxLabel, taxLineLabel } from "@/utils/taxCalculator";
 import { useState } from "react";
 import Link from "next/link";
 import type { Order } from "@/redux/slices/userSlice";
@@ -19,6 +19,8 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
     // The order's own currency (saved since checkout became server-priced), else the store's.
     const prefix = currencyPrefix(order.currency || currency);
     const locale = currencyLocale(order.currency || currency);
+    // The items' tax by type; the tax on shipping is its own row below. An older API has one combined list and no shipping tax.
+    const taxRows = (order.item_tax_lines ?? order.tax_lines ?? []).filter((line) => line.amount > 0);
     const [trackingInfo, setTrackingInfo] = useState<{ number: string; isOrderNumber: boolean; carrier?: string; orderStatus?: string } | null>(null);
 
     const allShipments =
@@ -95,8 +97,8 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                     <span>Subtotal</span>
                                     <span>{prefix}{(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0)).toLocaleString(locale)}</span>
                                 </div>
-                                {order.tax > 0 && (order.tax_lines ?? []).filter((line) => line.amount > 0).length > 0
-                                    ? (order.tax_lines ?? []).filter((line) => line.amount > 0).map((line) => (
+                                {order.tax > 0 && taxRows.length > 0
+                                    ? taxRows.map((line) => (
                                         <div key={line.type} className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                             <span>{taxLineLabel(line)}</span>
                                             <span>{prefix}{line.amount.toLocaleString(locale)}</span>
@@ -108,6 +110,12 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                             <span>{prefix}{order.tax.toLocaleString(locale)}</span>
                                         </div>
                                     )}
+                                {(order.shipping_tax ?? 0) > 0 && (
+                                    <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                        <span>{shippingTaxLabel(taxRows)}</span>
+                                        <span>{prefix}{(order.shipping_tax ?? 0).toLocaleString(locale)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
                                     <span>Shipping</span>
                                     {order.shipping > 0 ? <span>{prefix}{order.shipping.toLocaleString(locale)}</span> : <span className="text-green-600 font-semibold">Free</span>}

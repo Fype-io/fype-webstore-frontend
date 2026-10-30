@@ -50,5 +50,12 @@ export const calculateProductTax = (
 };
 
 /** "CGST (9%)", "VAT (5%)": a tax line as shown to the shopper. */
+/** "GST on shipping" for India's CGST/SGST/IGST, otherwise "<tax name> on shipping" (VAT on shipping ...). */
+export const shippingTaxLabel = (lines: Array<{ type: string }>): string => {
+    const types = lines.map((line) => line.type);
+    if (types.some((type) => type === "CGST" || type === "SGST" || type === "IGST")) return "GST on shipping";
+    return `${types[0] ?? "Tax"} on shipping`;
+};
+
 export const taxLineLabel = (line: { type: string; rate: number }): string =>
     line.rate > 0 ? `${line.type} (${Number(line.rate.toFixed(2))}%)` : line.type;

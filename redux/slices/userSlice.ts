@@ -123,6 +123,10 @@ export interface Order {
     total: number;
     /** The order's tax split by type (snapshot); absent from an older API. */
     tax_lines?: TaxLine[];
+    /** The items' tax by type, without the tax on shipping; absent from an older API. */
+    item_tax_lines?: TaxLine[];
+    /** The tax on shipping, shown as its own row; absent from an older API. */
+    shipping_tax?: number;
     /** Currency the order was placed in (orders from before PR1 have none). */
     currency?: string | null;
     paymentStatus: "pending" | "completed" | "paid" | "unpaid" | "cod" | "failed" | "refunded" | "partially_refunded";

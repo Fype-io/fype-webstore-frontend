@@ -116,7 +116,7 @@ const readyStripe: StripeCheckoutAdapter = {
 
 type UserState = ReturnType<typeof userReducer>;
 
-function buildStore() {
+function buildStore(cartOverride: Record<string, unknown> = {}) {
     return configureStore({
         reducer: { user: userReducer },
         preloadedState: {
@@ -155,6 +155,7 @@ function buildStore() {
                     discount: 0,
                     total: 100,
                     itemCount: 1,
+                    ...cartOverride,
                 },
                 // Remaining UserState fields are left out - this test only
                 // provides what CheckoutView actually reads - and `user` uses an
@@ -169,8 +170,8 @@ function buildStore() {
 // is a validation error on click), so a test that orders waits for the address.
 const addressLoaded = async () => expect((await screen.findAllByText(/123 Main St/)).length).toBeGreaterThan(0);
 
-function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>> = {}) {
-    const store = buildStore();
+function renderCheckout(props: Partial<React.ComponentProps<typeof CheckoutView>> = {}, cartOverride: Record<string, unknown> = {}) {
+    const store = buildStore(cartOverride);
     return render(
         <Provider store={store}>
             <CheckoutView
@@ -773,5 +774,17 @@ describe("CheckoutView - tax on shipping is in the total shown", () => {
         await addressLoaded();
         await waitFor(() => expect(screen.getAllByText("₹163").length).toBeGreaterThan(0));
         expect(screen.queryAllByText("Tax on shipping").length).toBe(0); // one total row without the server's tax lines
+    });
+
+    it("shipping the cart already priced (same charge) keeps the cart's tax split and adds nothing twice", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 15, shippingTax: 0.75 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout(
+            { hasManualShipping: true, shipmentProvider: "manual", activeGateways: [] },
+            { subtotal: 200, tax: 10.75, shipping: 15, shippingTax: 0.75, taxLabel: "VAT", taxLines: [{ type: "VAT", rate: 5, amount: 10.75 }], total: 225.75 }
+        );
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹225.75").length).toBeGreaterThan(0));
+        expect(screen.getAllByText("VAT (5%)").length).toBeGreaterThan(0);
+        expect(screen.queryAllByText("VAT on shipping").length).toBe(0);
     });
 });

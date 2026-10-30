@@ -7,26 +7,24 @@ import { fetchOrders } from "@/redux/slices/userSlice";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
 import { currencyLocale, currencyPrefix } from "@/lib/currency";
 import { orderHref } from "@/lib/order-url";
+import { orderStatusLabel, orderStatusTone, type OrderStatusTone } from "@/lib/order-status";
 
 interface OrderListProps {
     storeId: string;
 }
 
-const formatStatus = (raw: string) => {
-    const clean = raw === "booked" ? "pending" : raw;
-    return clean
-        .split("_")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+const formatStatus = (raw: string) => orderStatusLabel(raw);
+
+const BADGE_CLASS: Record<OrderStatusTone, string> = {
+    success: "bg-green-100 text-green-700",
+    danger: "bg-red-100 text-red-700",
+    refund: "bg-purple-100 text-purple-700",
+    info: "bg-blue-100 text-blue-700",
+    warning: "bg-amber-100 text-amber-700",
+    neutral: "bg-orange-100 text-orange-700",
 };
 
-const statusBadgeClass = (status: string) => {
-    if (status === "delivered") return "bg-green-100 text-green-700";
-    if (status === "cancelled") return "bg-red-100 text-red-700";
-    if (status === "refunded") return "bg-purple-100 text-purple-700";
-    if (status === "shipped" || status === "in_transit") return "bg-blue-100 text-blue-700";
-    return "bg-orange-100 text-orange-700";
-};
+const statusBadgeClass = (status: string) => BADGE_CLASS[orderStatusTone(status)];
 
 export default function OrderList({ storeId }: OrderListProps) {
     const { currency } = useStoreCurrency();

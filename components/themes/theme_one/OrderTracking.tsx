@@ -3,27 +3,15 @@
 import { useEffect, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchTrackingDetails, clearTrackingError } from "@/redux/slices/userSlice";
+import { orderStatusLabel, trackingProgress, TRACKING_STEPS, type OrderStatusTone } from "@/lib/order-status";
 
-const STATUS_STEPS = [
-    { key: "pending", label: "Order Placed" },
-    { key: "confirmed", label: "Order Confirmed" },
-    { key: "shipped", label: "Shipped" },
-    { key: "in_transit", label: "In Transit" },
-    { key: "out_for_delivery", label: "Out for Delivery" },
-    { key: "delivered", label: "Delivered" },
-];
-
-const TERMINAL: Record<string, { label: string; color: string }> = {
-    cancelled: { label: "Order Cancelled", color: "bg-red-50 border-red-100 text-red-700" },
-    refunded: { label: "Order Refunded", color: "bg-orange-50 border-orange-100 text-orange-700" },
-    returned: { label: "Order Returned", color: "bg-gray-50 border-gray-200 text-gray-700" },
-    return_in_progress: { label: "Return In Progress", color: "bg-yellow-50 border-yellow-100 text-yellow-700" },
-};
-
-const normalizeStatus = (status?: string): string => {
-    if (!status) return "";
-    const s = status.toLowerCase().replace(/-/g, "_");
-    return s === "partially_delivered" ? "delivered" : s;
+const END_CARD_COLOR: Record<OrderStatusTone, string> = {
+    danger: "bg-red-50 border-red-100 text-red-700",
+    refund: "bg-orange-50 border-orange-100 text-orange-700",
+    warning: "bg-yellow-50 border-yellow-100 text-yellow-700",
+    neutral: "bg-gray-50 border-gray-200 text-gray-700",
+    success: "bg-green-50 border-green-100 text-green-700",
+    info: "bg-blue-50 border-blue-100 text-blue-700",
 };
 
 /**
@@ -67,9 +55,7 @@ export default function OrderTracking({ storeId, trackingNumber, isOrderNumber =
     }, [trackingData]);
 
     const reference = trackingReference(trackingNumber, isOrderNumber);
-    const normalized = normalizeStatus(orderStatus);
-    const terminal = TERMINAL[normalized];
-    const currentIdx = STATUS_STEPS.findIndex((s) => s.key === normalized);
+    const { endCard, currentStep: currentIdx, deliveryFailed } = trackingProgress(orderStatus);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -84,7 +70,7 @@ export default function OrderTracking({ storeId, trackingNumber, isOrderNumber =
                     {!trackingLoading && trackingData && (
                         <div className="mb-8 flex items-center justify-between">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">{trackingData.status || "Processing"}</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">{orderStatusLabel(trackingData.status) || "Processing"}</h2>
                                 <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest mt-1">Current Status</p>
                             </div>
                             <div className="text-right">
@@ -126,21 +112,27 @@ export default function OrderTracking({ storeId, trackingNumber, isOrderNumber =
                         </div>
                     ) : (
                         <div className="py-8">
-                            {terminal ? (
-                                <div className={`rounded-2xl border p-6 text-center ${terminal.color}`}>
-                                    <p className="text-sm font-semibold uppercase tracking-widest">{terminal.label}</p>
+                            {endCard ? (
+                                <div data-testid="tracking-end-card" className={`rounded-2xl border p-6 text-center ${END_CARD_COLOR[endCard.tone]}`}>
+                                    <p className="text-sm font-semibold uppercase tracking-widest">{endCard.label}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {STATUS_STEPS.map((step, idx) => {
+                                    {TRACKING_STEPS.map((step, idx) => {
                                         const isActive = idx === currentIdx;
                                         const isDone = currentIdx > -1 && idx < currentIdx;
+                                        const failed = isActive && deliveryFailed;
                                         return (
-                                            <div key={step.key} className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? "bg-black" : isDone ? "bg-gray-300" : "bg-gray-100"}`}>
+                                            <div key={step.key} className="flex items-center gap-4" data-step={step.key} data-active={isActive || undefined}>
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-red-600" : isActive ? "bg-black" : isDone ? "bg-gray-300" : "bg-gray-100"}`}>
                                                     <span className={`material-symbols-outlined text-base ${isActive || isDone ? "text-white" : "text-gray-300"}`}>package_2</span>
                                                 </div>
-                                                <span className={`text-sm font-semibold ${isActive ? "text-gray-900" : isDone ? "text-gray-400" : "text-gray-200"}`}>{step.label}</span>
+                                                <div>
+                                                    <span className={`text-sm font-semibold ${isActive ? "text-gray-900" : isDone ? "text-gray-400" : "text-gray-200"}`}>{step.label}</span>
+                                                    {failed && (
+                                                        <p className="text-[11px] font-medium text-red-600 mt-0.5">Delivery attempt failed – the courier will try again</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}

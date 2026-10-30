@@ -97,7 +97,10 @@ export interface OrderItem {
 }
 
 export interface Shipment {
-    status: "pending" | "shipped" | "in_transit" | "delivered" | "return_in_progress" | "returned" | "cancelled";
+    /** Backend SHIPMENT_STATUSES; return_in_progress / returned are legacy names of the rto_* ones. */
+    status:
+        | "pending" | "shipped" | "in_transit" | "out_for_delivery" | "delivery_failed" | "delivered"
+        | "rto_in_progress" | "rto_complete" | "cancelled" | "return_in_progress" | "returned";
     awbNumber?: string;
     carrier?: string;
     provider?: string;
@@ -114,7 +117,11 @@ export interface TaxLine {
 export interface Order {
     orderId: string;
     orderNumber: string;
-    status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded";
+    /** Backend ORDER_STATUSES (lib/order-status.ts shows them); return_in_progress / returned are legacy names. */
+    status:
+        | "pending" | "confirmed" | "shipped" | "in_transit" | "out_for_delivery" | "delivery_failed" | "delivered"
+        | "partially_delivered" | "return_pending" | "return_in_transit" | "return_complete" | "partially_returned"
+        | "rto_in_progress" | "rto_complete" | "cancelled" | "refunded" | "return_in_progress" | "returned";
     items: OrderItem[];
     subtotal: number;
     tax: number;

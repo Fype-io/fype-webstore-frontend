@@ -75,6 +75,8 @@ export interface Cart {
     taxLabel?: string;
     /** The tax split by type, shipping tax included in the amounts; absent from an older API. */
     taxLines?: TaxLine[];
+    /** The same split for the items alone (no tax on shipping); absent from an older API. */
+    itemTaxLines?: TaxLine[];
     /** The part of `tax` that is on shipping. */
     shippingTax?: number;
     shipping: number;

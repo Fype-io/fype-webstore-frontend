@@ -787,4 +787,22 @@ describe("CheckoutView - tax on shipping is in the total shown", () => {
         expect(screen.getAllByText("VAT (5%)").length).toBeGreaterThan(0);
         expect(screen.queryAllByText("VAT on shipping").length).toBe(0);
     });
+
+    it("an API that sends itemTaxLines shows the item tax at its own rate and the shipping tax as its own row", async () => {
+        vi.mocked(calculateShippingRate).mockResolvedValue({ serviceable: true, deliveryCharge: 15, shippingTax: 0.75 } as Awaited<ReturnType<typeof calculateShippingRate>>);
+        renderCheckout(
+            { hasManualShipping: true, shipmentProvider: "manual", activeGateways: [] },
+            {
+                subtotal: 200, tax: 12.75, shipping: 15, shippingTax: 0.75, taxLabel: "VAT", total: 227.75,
+                taxLines: [{ type: "VAT", rate: 6, amount: 12.75 }],
+                itemTaxLines: [{ type: "VAT", rate: 6, amount: 12 }],
+            }
+        );
+        await addressLoaded();
+        await waitFor(() => expect(screen.getAllByText("₹227.75").length).toBeGreaterThan(0));
+        expect(screen.getAllByText("VAT (6%)").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("₹12").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("VAT on shipping").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("₹0.75").length).toBeGreaterThan(0);
+    });
 });

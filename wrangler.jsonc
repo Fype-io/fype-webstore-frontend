@@ -26,7 +26,14 @@
 		// the Worker's own origin instead of the backend until .env.local was added — see that file, not this one,
 		// for the value that actually matters to client code.
 		"API_BASE_URL": "https://api.fypestore.com/api/v1",
-		"NEXT_PUBLIC_API_BASE_URL": "https://api.fypestore.com/api/v1"
+		"NEXT_PUBLIC_API_BASE_URL": "https://api.fypestore.com/api/v1",
+		// The production admin app (ecommerce_app), allowed to frame the theme
+		// customizer's preview (lib/editor-admin-origins.ts). Unset means
+		// frame-ancestors 'none': the editor iframe is blocked. Both names are
+		// listed while the admin moves from ecommerce.fype.io to commerce.fype.io.
+		// A test (lib/__tests__/wrangler-editor-origins.test.ts) fails if any
+		// environment here has no valid origin.
+		"EDITOR_ADMIN_ORIGINS": "https://ecommerce.fype.io,https://commerce.fype.io"
 	},
 	"kv_namespaces": [
 		{
@@ -88,7 +95,7 @@
 				// frame-ancestors 'none': the editor iframe shows "refused to connect".
 				// Comma-separated if more than one. Kept here, not in the dashboard:
 				// a deploy replaces the Worker's vars with these.
-				"EDITOR_ADMIN_ORIGINS": "https://test-ecommerce.fype.io"
+				"EDITOR_ADMIN_ORIGINS": "https://test-commerce.fype.io,https://test-ecommerce.fype.io"
 			},
 			// Wires test-shops.fypestore.com (staging fallback-origin hostname; kept
 			// one label deep so it's covered by the free Universal SSL wildcard cert,

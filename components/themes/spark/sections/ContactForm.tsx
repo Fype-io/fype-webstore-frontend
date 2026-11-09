@@ -9,15 +9,13 @@ interface ContactFormProps {
     settings: SparkContactFormSettings;
 }
 
-// Full port of Fype-E-Commerce-UI's sections/ContactForm.tsx (read-only
-// design reference) — deliberately decorative, matching the reference
-// exactly: its own submit handler never sends a request anywhere either,
-// just a local fake "submitted" state after preventDefault. A real
-// submission pipeline (backend model/endpoint, email-notify wiring) is
-// separate scope, not part of porting this section (confirmed with the
-// user). No addable blocks (matches THEME_SCHEMA), so no editor per-field
-// click-to-select — the whole section is one click target, same as
-// Featured Collection/Product/Collection List.
+// Port of Fype-E-Commerce-UI's sections/ContactForm.tsx. Submitting sends the
+// fields to POST /commerce/contact-owner (crmApp emails the store owner); a
+// failure shows a shopper-safe message above the button (getApiErrorMessage,
+// never the server's own error text), and the button is disabled while
+// sending so one click sends one email. No addable blocks (matches
+// THEME_SCHEMA), so no editor per-field click-to-select — the whole section
+// is one click target, same as Featured Collection/Product/Collection List.
 export default function ContactForm({ settings }: ContactFormProps) {
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,7 +50,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
             const storeId = getCurrentStoreId();
 
             if(!storeId) {
-                setError("Store not found");
+                setError("Unable to send your message. Please try again.");
                 return;
             }
 
@@ -210,9 +208,16 @@ export default function ContactForm({ settings }: ContactFormProps) {
                             </div>
                         )}
 
+                        {error && (
+                            <div role="alert" className="p-3 bg-red-50 text-red-700 rounded-lg text-sm text-left">
+                                {error}
+                            </div>
+                        )}
+
                         <button
                             type="submit"
-                            className="w-full bg-black text-white font-medium py-3.5 rounded-lg hover:bg-gray-800 transition-colors shadow-[0_4px_14px_0_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] mt-2"
+                            disabled={loading}
+                            className="w-full bg-black text-white font-medium py-3.5 rounded-lg hover:bg-gray-800 transition-colors shadow-[0_4px_14px_0_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {settings.submit_button_label}
                         </button>

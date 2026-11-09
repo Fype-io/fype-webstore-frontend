@@ -2,6 +2,7 @@
 
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { getCurrentStoreId } from "./client-store-context";
+import { shopperErrorMessage } from "./shopper-error";
 
 const AUTH_TOKEN_KEY = "auth_token";
 const GUEST_ID_KEY = "guest_id";
@@ -107,10 +108,13 @@ export const putApi = <T = unknown, D = unknown>(
 export const deleteApi = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> =>
     api.delete<T>(url, config);
 
+/**
+ * What the shopper is told about a failed API call: the backend's own message when it's one written for shoppers,
+ * otherwise `fallback` (never a raw server or network error - see lib/shopper-error.ts).
+ */
 export function getApiErrorMessage(error: unknown, fallback: string): string {
     if (axios.isAxiosError(error)) {
-        const message = (error.response?.data as { message?: string } | undefined)?.message;
-        if (message) return message;
+        return shopperErrorMessage(error.response?.status, error.response?.data, fallback);
     }
     return fallback;
 }

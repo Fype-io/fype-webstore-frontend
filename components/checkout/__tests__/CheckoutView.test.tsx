@@ -493,7 +493,7 @@ describe("CheckoutView - COD needs a logistics app; \"Order now\" fallback", () 
                 "Cash on delivery isn't available for this store. This store's payment options have changed. Please refresh the page to see how you can pay."
             )
         ).toBeInTheDocument();
-        expect(screen.queryByText("Order creation failed. Please contact support.")).not.toBeInTheDocument();
+        expect(screen.queryByText("Couldn't place your order. Please try again.")).not.toBeInTheDocument();
     });
 
     it("no payment app, logistics connected, COD turned off: \"Order now\"", async () => {

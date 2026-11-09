@@ -53,6 +53,23 @@ describe("POST /api/storefront-unlock", () => {
         expect(res.cookies.get("sf_storefront_unlocked")).toBeUndefined();
     });
 
+    it("a wrong password says so (the backend's own INVALID_PASSWORD message)", async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ success: false, code: "INVALID_PASSWORD", message: "Incorrect password" }), { status: 401 })
+        );
+        const res = await POST(unlockRequest());
+        expect(await res.json()).toEqual({ success: false, message: "Incorrect password" });
+    });
+
+    it("a backend fault never shows its own text", async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ success: false, message: "MongoServerError: connection closed" }), { status: 500 })
+        );
+        const res = await POST(unlockRequest());
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ success: false, message: "This store can't be opened right now. Please try again later." });
+    });
+
     it("refuses without a secret, before checking the password", async () => {
         vi.mocked(getStorefrontTokenSecret).mockResolvedValue(null);
 

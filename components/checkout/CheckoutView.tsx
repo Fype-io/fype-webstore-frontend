@@ -278,7 +278,7 @@ export default function CheckoutView({
             await dispatch(clearCart({ storeId }));
             router.push(orderHref(order));
         } catch (error) {
-            setOrderError(typeof error === "string" ? error : "Order creation failed. Please contact support.");
+            setOrderError(typeof error === "string" ? error : "Couldn't place your order. Please try again.");
         } finally {
             setProcessingOrder(false);
         }

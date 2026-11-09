@@ -42,6 +42,14 @@ describe("PaymentSummaryCard - tax rows", () => {
         expect(screen.queryByText("VAT (5%)")).not.toBeInTheDocument();
     });
 
+    it("shows no tax row at all when tax is off, even if the store still has a saved label", () => {
+        renderCard({ tax: 0, taxLabel: "GST", taxLines: [], total: 215 });
+        expect(screen.queryByText(/GST/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Tax/)).not.toBeInTheDocument();
+        expect(screen.getByText("Subtotal")).toBeInTheDocument();
+        expect(screen.getByText("Shipping")).toBeInTheDocument();
+    });
+
     it("shows the discount as a deduction", () => {
         renderCard({ discount: 20, taxLabel: "VAT" });
         expect(screen.getByText("Discount")).toBeInTheDocument();

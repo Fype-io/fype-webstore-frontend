@@ -65,7 +65,7 @@ describe("useStripeAdapter", () => {
 
         await expect(
             result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } })
-        ).rejects.toThrow("Stripe SDK not loaded");
+        ).rejects.toThrow("Payment couldn't load. Please refresh the page and try again.");
         expect(createGatewayOrder).not.toHaveBeenCalled();
     });
 

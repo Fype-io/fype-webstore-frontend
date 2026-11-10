@@ -53,26 +53,31 @@ export default function PaymentSummaryCard({
                     <span className="text-gray-500 font-semibold">Subtotal</span>
                     <span className="text-gray-800 font-bold">{format(subtotal)}</span>
                 </div>
-                {linesAddUp ? (
+                {/* No tax row when nothing is charged (tax switched off, or a 0% rate): a "GST AED 0" line only confuses shoppers. */}
+                {tax > 0 && (
                     <>
-                        {itemLines.map((line) => (
-                            <div key={line.type} className="flex justify-between items-center">
-                                <span className="text-gray-500 font-semibold">{taxLineLabel(line)}</span>
-                                <span className="text-gray-800 font-bold">{format(line.amount)}</span>
-                            </div>
-                        ))}
-                        {shippingTax > 0 && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-500 font-semibold">{taxLabel || "Tax"} on shipping</span>
-                                <span className="text-gray-800 font-bold">{format(shippingTax)}</span>
-                            </div>
-                        )}
+                    {linesAddUp ? (
+                        <>
+                            {itemLines.map((line) => (
+                                <div key={line.type} className="flex justify-between items-center">
+                                    <span className="text-gray-500 font-semibold">{taxLineLabel(line)}</span>
+                                    <span className="text-gray-800 font-bold">{format(line.amount)}</span>
+                                </div>
+                            ))}
+                            {shippingTax > 0 && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 font-semibold">{taxLabel || "Tax"} on shipping</span>
+                                    <span className="text-gray-800 font-bold">{format(shippingTax)}</span>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-500 font-semibold">{taxLabel || "Tax"}</span>
+                            <span className="text-gray-800 font-bold">{format(tax)}</span>
+                        </div>
+                    )}
                     </>
-                ) : (
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-500 font-semibold">{taxLabel || "Tax"}</span>
-                        <span className="text-gray-800 font-bold">{format(tax)}</span>
-                    </div>
                 )}
                 {discount > 0 && (
                     <div className="flex justify-between items-center">

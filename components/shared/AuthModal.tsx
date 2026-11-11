@@ -201,7 +201,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
             setOtp(["", "", "", ""]);
             setStep("otp");
         } catch (err: unknown) {
-            const message = typeof err === "string" ? err : "Failed to send OTP";
+            const message = typeof err === "string" ? err : "Couldn't send the OTP. Please try again.";
             setLocalError(message);
             if (message.includes("try again later")) setResendCooldown(60);
         }
@@ -225,7 +225,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
             else payload.phoneNumber = phone.replace(/\s/g, "");
             await dispatch(verifyOTP(payload)).unwrap();
         } catch (err: unknown) {
-            const message = typeof err === "string" ? err : "Invalid OTP";
+            const message = typeof err === "string" ? err : "Couldn't verify the OTP. Please try again.";
             setLocalError(message);
             if (message.includes("attempts left")) {
                 const match = message.match(/(\d+) attempts? left/);
@@ -300,7 +300,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
             ).unwrap();
             setStep("success");
         } catch (err: unknown) {
-            setLocalError(typeof err === "string" ? err : "Failed to complete registration");
+            setLocalError(typeof err === "string" ? err : "Couldn't finish signing you up. Please try again.");
         }
     };
 

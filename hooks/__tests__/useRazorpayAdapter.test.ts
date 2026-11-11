@@ -63,7 +63,7 @@ describe("useRazorpayAdapter", () => {
 
         await expect(
             result.current.open({ amount: 10000, shippingAddress: SHIPPING, userDetails: { name: "Test User", phone: "9999999999" } })
-        ).rejects.toThrow("Razorpay SDK not loaded");
+        ).rejects.toThrow("Payment couldn't load. Please refresh the page and try again.");
         expect(createGatewayOrder).not.toHaveBeenCalled();
     });
 
@@ -183,6 +183,6 @@ describe("useRazorpayAdapter", () => {
             });
         });
 
-        await expect(settled).resolves.toEqual(new Error("Payment verification failed"));
+        await expect(settled).resolves.toEqual(new Error("Payment verification failed. Please contact the store."));
     });
 });

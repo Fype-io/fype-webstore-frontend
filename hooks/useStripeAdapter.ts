@@ -89,7 +89,7 @@ function collectStripePayment(
             const { error, paymentIntent } = await stripe.confirmPayment({ elements, redirect: "if_required" });
             if (error) {
                 cleanup();
-                reject(new Error(error.message || "Payment failed"));
+                reject(new Error(error.message || "Payment failed. Please try again."));
                 return;
             }
             cleanup();
@@ -119,7 +119,7 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
     const open = useCallback(
         async (orderRef: GatewayOrderRef): Promise<GatewayOpenResult> => {
             if (!stripe) {
-                throw new Error("Stripe SDK not loaded");
+                throw new Error("Payment couldn't load. Please refresh the page and try again.");
             }
             setIsLoading(true);
             try {
@@ -129,7 +129,7 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
                     ...(orderRef.billingAddress ? { billingAddress: orderRef.billingAddress } : {}),
                 });
                 if (!orderData || !orderData.clientSecret) {
-                    throw new Error("Failed to create payment order");
+                    throw new Error("Could not start the payment. Please try again.");
                 }
 
                 const result = await collectStripePayment(stripe, orderData.clientSecret, payButtonLabel(orderData.amount, orderData.currency), orderData.wallets);
@@ -139,7 +139,7 @@ export function useStripeAdapter({ storeId, publishableKey }: UseStripeAdapterOp
 
                 const verification = await verifyGatewayPayment(storeId, "stripe", { paymentIntentId: result.paymentIntentId });
                 if (!verification || !verification.verified) {
-                    throw new Error("Payment verification failed");
+                    throw new Error("Payment verification failed. Please contact the store.");
                 }
 
                 return { gatewayRef: { paymentIntentId: result.paymentIntentId } };

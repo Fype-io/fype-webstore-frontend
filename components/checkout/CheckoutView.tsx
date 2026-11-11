@@ -31,7 +31,17 @@ import PaymentMethodList from "./PaymentMethodList";
 import PaymentSummaryCard from "./PaymentSummaryCard";
 import StripeExpressCheckout, { enabledWallets, stripeWalletMethods, walletOf, type StripeExpressConfig, type WalletAvailability } from "./StripeExpressCheckout";
 import SelectAddressPanel from "./SelectAddressPanel";
-import { ADDRESS_REQUIRED_MESSAGE, addressKey, codAvailability, ORDER_NOW_NOTE, type CheckoutViewState, type CodSetting, type PaymentMethodId } from "./checkoutUtils";
+import {
+    ADDRESS_REQUIRED_MESSAGE,
+    addressKey,
+    CHECKOUT_UNAVAILABLE_MESSAGE,
+    codAvailability,
+    isAddressRateReason,
+    ORDER_NOW_NOTE,
+    type CheckoutViewState,
+    type CodSetting,
+    type PaymentMethodId,
+} from "./checkoutUtils";
 import { defaultAddressCountry, quotesByCity, type ShipmentProvider } from "@/lib/shipment-provider";
 import { orderHref } from "@/lib/order-url";
 
@@ -131,6 +141,10 @@ export default function CheckoutView({
     // unpaid and the store arranges payment. Never shown alongside either.
     const orderNow = !hasPaymentGateway && !showCod;
     const notServiceable = (hasDeliveryApp || hasManualShipping) && !shipmentState.serviceable;
+    // Only an address problem is shown on the address card; anything else (a product with
+    // no package, the store's shipping not set up, ...) isn't fixed by another address.
+    const addressNotServiceable = notServiceable && isAddressRateReason(shipmentState.reason);
+    const checkoutError = orderError ?? (notServiceable && !addressNotServiceable ? CHECKOUT_UNAVAILABLE_MESSAGE : null);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- re-sync the selection when the available methods change
@@ -278,7 +292,7 @@ export default function CheckoutView({
             await dispatch(clearCart({ storeId }));
             router.push(orderHref(order));
         } catch (error) {
-            setOrderError(typeof error === "string" ? error : "Order creation failed. Please contact support.");
+            setOrderError(typeof error === "string" ? error : "Couldn't place your order. Please try again.");
         } finally {
             setProcessingOrder(false);
         }
@@ -545,7 +559,7 @@ export default function CheckoutView({
                                     setEditingAddress(null);
                                     setView("add-address");
                                 }}
-                                notServiceable={notServiceable}
+                                notServiceable={addressNotServiceable}
                                 tatInfo={tatInfo?.deliveryDate}
                                 error={addressError}
                             />
@@ -583,7 +597,7 @@ export default function CheckoutView({
                             </>
                         )}
 
-                        {orderError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{orderError}</div>}
+                        {checkoutError && <div role="alert" className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{checkoutError}</div>}
                     </div>
 
                     <CheckoutCta

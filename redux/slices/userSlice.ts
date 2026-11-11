@@ -246,7 +246,7 @@ export const getPlatform = createAsyncThunk(
             const response = await getApi<ApiResponse<{ channels: string[] }>>(`/customer/${storeId}/authentication/channel`);
             return response.data.data.channels ?? ["email"];
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to get platform"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load sign-in options. Please try again."));
         }
     }
 );
@@ -272,12 +272,12 @@ export const sendOTP = createAsyncThunk(
             >(`/customer/${storeId}/login/initiate`, payload);
 
             if (!response.data.success) {
-                return rejectWithValue(response.data.message || "Failed to send OTP");
+                return rejectWithValue(response.data.message || "Couldn't send the OTP. Please try again.");
             }
 
             return response.data.data;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to send OTP"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't send the OTP. Please try again."));
         }
     }
 );
@@ -329,7 +329,7 @@ export const verifyOTP = createAsyncThunk(
 
             return { customer, isNew, requiresRegistration };
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Invalid OTP"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't verify the OTP. Please try again."));
         }
     }
 );
@@ -351,12 +351,12 @@ export const completeRegistration = createAsyncThunk(
             );
 
             if (!response.data.success) {
-                return rejectWithValue(response.data.message || "Failed to complete registration");
+                return rejectWithValue(response.data.message || "Couldn't finish signing you up. Please try again.");
             }
 
             return response.data.data.customer;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to complete registration"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't finish signing you up. Please try again."));
         }
     }
 );
@@ -378,12 +378,12 @@ export const resendOTP = createAsyncThunk(
             >(`/customer/${storeId}/login/resend`, { countryCode, phoneNumber: `${countryCode}${phoneNumber}`, channel });
 
             if (!response.data.data.success) {
-                return rejectWithValue(response.data.data.message || "Failed to resend OTP");
+                return rejectWithValue(response.data.data.message || "Couldn't resend the OTP. Please try again.");
             }
 
             return response.data.data;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to resend OTP"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't resend the OTP. Please try again."));
         }
     }
 );
@@ -415,7 +415,7 @@ export const fetchUserProfile = createAsyncThunk(
             });
             return response.data.data.customer;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch profile"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your profile. Please try again."));
         }
     }
 );
@@ -429,7 +429,7 @@ export const updateUserProfile = createAsyncThunk(
             });
             return response.data.data.customer;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to update profile"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't save your profile. Please try again."));
         }
     }
 );
@@ -443,7 +443,7 @@ export const fetchCart = createAsyncThunk(
             const response = await getApi<ApiResponse<{ cart: Cart }>>(`/commerce/cart/${storeId}`, { withCredentials: true });
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your cart. Please try again."));
         }
     }
 );
@@ -462,7 +462,7 @@ export const addToCart = createAsyncThunk(
             );
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to add to cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't add this to your cart. Please try again."));
         }
     }
 );
@@ -481,7 +481,7 @@ export const updateCartItem = createAsyncThunk(
             );
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to update cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't update your cart. Please try again."));
         }
     }
 );
@@ -496,7 +496,7 @@ export const removeFromCart = createAsyncThunk(
             });
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to remove from cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't remove the item. Please try again."));
         }
     }
 );
@@ -508,7 +508,7 @@ export const clearCart = createAsyncThunk(
             await deleteApi(`/commerce/cart/${storeId}/clear`, { withCredentials: true });
             return null;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to clear cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't clear your cart. Please try again."));
         }
     }
 );
@@ -523,7 +523,7 @@ export const fetchGuestCart = createAsyncThunk(
             if (response.data.data.cart.guestId) setGuestId(response.data.data.cart.guestId);
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch guest cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your cart. Please try again."));
         }
     }
 );
@@ -543,7 +543,7 @@ export const addToGuestCart = createAsyncThunk(
             if (response.data.data.cart.guestId) setGuestId(response.data.data.cart.guestId);
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to add to guest cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't add this to your cart. Please try again."));
         }
     }
 );
@@ -562,7 +562,7 @@ export const updateGuestCartItem = createAsyncThunk(
             if (response.data.data.cart.guestId) setGuestId(response.data.data.cart.guestId);
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to update guest cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't update your cart. Please try again."));
         }
     }
 );
@@ -578,7 +578,7 @@ export const removeFromGuestCart = createAsyncThunk(
             if (response.data.data.cart.guestId) setGuestId(response.data.data.cart.guestId);
             return response.data.data.cart;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to remove from guest cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't remove the item. Please try again."));
         }
     }
 );
@@ -591,7 +591,7 @@ export const clearGuestCart = createAsyncThunk(
             clearGuestId();
             return null;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to clear guest cart"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't clear your cart. Please try again."));
         }
     }
 );
@@ -607,7 +607,7 @@ export const fetchWishlist = createAsyncThunk(
             });
             return response.data.data.productIds;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch wishlist"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your wishlist. Please try again."));
         }
     }
 );
@@ -619,7 +619,7 @@ export const addToWishlist = createAsyncThunk(
             await postApi(`/commerce/${storeId}/wishlist/add`, { productId }, { withCredentials: true });
             return productId;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to add to wishlist"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't add this to your wishlist. Please try again."));
         }
     }
 );
@@ -631,7 +631,7 @@ export const removeFromWishlist = createAsyncThunk(
             await deleteApi(`/commerce/${storeId}/wishlist/remove/${productId}`, { withCredentials: true });
             return productId;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to remove from wishlist"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't remove this from your wishlist. Please try again."));
         }
     }
 );
@@ -647,7 +647,7 @@ export const fetchAddresses = createAsyncThunk(
             });
             return response.data.data.addresses;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch addresses"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your addresses. Please try again."));
         }
     }
 );
@@ -661,7 +661,7 @@ export const addAddress = createAsyncThunk(
             });
             return response.data.data.address;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to add address"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't save the address. Please try again."));
         }
     }
 );
@@ -678,7 +678,7 @@ export const updateAddress = createAsyncThunk(
             });
             return response.data.data.address;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to update address"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't save the address. Please try again."));
         }
     }
 );
@@ -690,7 +690,7 @@ export const deleteAddress = createAsyncThunk(
             await deleteApi(`/customer/${storeId}/addresses/${addressId}`, { withCredentials: true });
             return addressId;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to delete address"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't delete the address. Please try again."));
         }
     }
 );
@@ -727,14 +727,14 @@ export const createOrder = createAsyncThunk(
             });
 
             if (!response.data.success) {
-                return rejectWithValue(response.data.message || "Failed to create order");
+                return rejectWithValue(response.data.message || "Couldn't place your order. Please try again.");
             }
 
             return response.data.data.order;
         } catch (error: unknown) {
             // Payment-option errors (COD needs a logistics app, "Order now" not
             // available) say to refresh - see lib/checkout-errors.ts.
-            return rejectWithValue(orderErrorMessage(error, "Failed to create order"));
+            return rejectWithValue(orderErrorMessage(error, "Couldn't place your order. Please try again."));
         }
     }
 );
@@ -749,7 +749,7 @@ export const fetchOrders = createAsyncThunk(
             );
             return response.data.data;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch orders"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load your orders. Please try again."));
         }
     }
 );
@@ -763,7 +763,7 @@ export const fetchOrderById = createAsyncThunk(
             });
             return response.data.data.order;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch order"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't load this order. Please try again."));
         }
     }
 );
@@ -779,7 +779,7 @@ export const cancelOrder = createAsyncThunk(
             );
             return response.data.data.order;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to cancel order"));
+            return rejectWithValue(getApiErrorMessage(error, "Couldn't cancel the order. Please try again."));
         }
     }
 );
@@ -793,7 +793,7 @@ export const fetchTrackingDetails = createAsyncThunk(
             const trackingDetails = await trackShipment(storeId, awbNumber, provider);
             return trackingDetails;
         } catch (error: unknown) {
-            return rejectWithValue(getApiErrorMessage(error, "Failed to fetch tracking details"));
+            return rejectWithValue(getApiErrorMessage(error, "Tracking details aren't available right now. Please try again later."));
         }
     }
 );

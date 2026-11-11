@@ -73,7 +73,7 @@ export function useRazorpayAdapter({ storeId, storeName }: UseRazorpayAdapterOpt
     const open = useCallback(
         async (orderRef: GatewayOrderRef): Promise<GatewayOpenResult> => {
             if (!isReady) {
-                throw new Error("Razorpay SDK not loaded");
+                throw new Error("Payment couldn't load. Please refresh the page and try again.");
             }
             setIsLoading(true);
             try {
@@ -83,7 +83,7 @@ export function useRazorpayAdapter({ storeId, storeName }: UseRazorpayAdapterOpt
                     ...(orderRef.billingAddress ? { billingAddress: orderRef.billingAddress } : {}),
                 });
                 if (!orderData || !orderData.keyId || !orderData.orderId) {
-                    throw new Error("Failed to create payment order");
+                    throw new Error("Could not start the payment. Please try again.");
                 }
 
                 return await new Promise<GatewayOpenResult>((resolve, reject) => {
@@ -121,7 +121,7 @@ export function useRazorpayAdapter({ storeId, storeName }: UseRazorpayAdapterOpt
                                         },
                                     });
                                 } else {
-                                    reject(new Error("Payment verification failed"));
+                                    reject(new Error("Payment verification failed. Please contact the store."));
                                 }
                             } catch (error) {
                                 reject(error);

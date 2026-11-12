@@ -20,8 +20,13 @@ import type {
 export { getApiBaseUrl };
 
 // Store-wide data (theme, nav, catalog) — same for every visitor of a store,
-// so these are safe to call from Server Components and let Next's fetch cache/ISR handle freshness.
-// Never call these for anything user-specific (cart, auth) — that stays client-side (Phase 2).
+// so these are safe to call from Server Components and let Next's fetch cache handle freshness.
+// That cache is shared by every visitor (R2 + Cache API, open-next.config.ts), keyed by URL:
+// never call these for anything user-specific (cart, auth) — that stays client-side (Phase 2),
+// and never add a per-user header to fetchJson.
+// The revalidate windows below are how long an edit can take to show, plus one view (the
+// expired copy is served once while it refreshes); nothing older than 10 minutes is ever
+// shown (lib/cache/max-age-incremental-cache.ts).
 //
 // Revalidation windows (Phase 7 review, 2026-07-28): split by how often each
 // data type actually changes, not one flat window for everything. These are

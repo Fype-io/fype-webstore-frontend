@@ -16,8 +16,19 @@ export type TenantLookup =
     | { status: "not_found" }
     | { status: "unavailable" };
 
-const CACHE_TTL_SECONDS = 300;
 const API_TIMEOUT_MS = 5000;
+
+// KV is only the fallback for when the API can't answer, so an entry can live
+// long: it's rewritten as soon as a request sees the store change. Short TTLs
+// meant a rewrite on every request, which ran through the KV write allowance.
+const CACHE_TTL_SECONDS = 24 * 60 * 60;
+// Rewrite a little before the entry expires, so it never lapses while in use.
+const REWRITE_AFTER_MS = 23 * 60 * 60 * 1000;
+// "Unpublished" is rewritten often (unpublished stores get little traffic, as
+// they're gated): another instance may have written "published" since, and a
+// stale "published" would open a password-protected store during an outage.
+const UNPUBLISHED_REWRITE_AFTER_MS = 60 * 1000;
+const MAX_REMEMBERED_TENANTS = 500;
 
 type ApiResult = { kind: "found"; tenant: TenantInfo } | { kind: "not_found" } | { kind: "error" };
 
@@ -73,30 +84,133 @@ async function readTenantCache(domain: string): Promise<TenantInfo | null> {
     }
 }
 
-async function writeTenantCache(domain: string, tenant: TenantInfo): Promise<void> {
-    try {
-        const { env } = await getCloudflareContext({ async: true });
-        await env.FYPE_TENANT_CACHE.put(`tenant:${domain}`, JSON.stringify(tenant), {
-            expirationTtl: tenant.isPublished === false ? 30 : CACHE_TTL_SECONDS,
-        });
-    } catch {
-        // Local next dev may not have KV; password gating still works from the API.
+// What this Worker instance knows KV holds, per domain: the tenant and when it
+// was written. Set only after a successful write, or after a KV read. Hosts
+// with no store are never added, so a flood of random subdomains can't push
+// real stores out. Oldest entry dropped past MAX_REMEMBERED_TENANTS.
+type RememberedTenant = { tenant: TenantInfo; writtenAt: number };
+const rememberedTenants = new Map<string, RememberedTenant>();
+// Domains with a KV write/delete in flight in this instance.
+const pendingDomains = new Set<string>();
+
+type TenantCacheMetadata = { writtenAt?: number };
+
+function remember(domain: string, tenant: TenantInfo, writtenAt: number): void {
+    rememberedTenants.delete(domain);
+    rememberedTenants.set(domain, { tenant, writtenAt });
+    if (rememberedTenants.size > MAX_REMEMBERED_TENANTS) {
+        const oldest = rememberedTenants.keys().next().value;
+        if (oldest !== undefined) rememberedTenants.delete(oldest);
     }
 }
 
-async function deleteTenantCache(domain: string): Promise<void> {
+function sameTenant(a: TenantInfo, b: TenantInfo): boolean {
+    return (
+        a.shopId === b.shopId &&
+        a.storeDomain === b.storeDomain &&
+        a.themeId === b.themeId &&
+        (a.isPublished !== false) === (b.isPublished !== false)
+    );
+}
+
+function isFresh(entry: RememberedTenant | undefined, tenant: TenantInfo, now: number): boolean {
+    if (!entry || !sameTenant(entry.tenant, tenant)) return false;
+    const maxAge = tenant.isPublished === false ? UNPUBLISHED_REWRITE_AFTER_MS : REWRITE_AFTER_MS;
+    return now - entry.writtenAt < maxAge;
+}
+
+// Runs a KV task after the response when the Worker context allows it, so no
+// request waits on KV; otherwise (local next dev) waits for it. At most one
+// task per domain at a time: the domain is marked before the first await, so
+// parallel requests in this instance don't all write.
+async function runInBackground(
+    domain: string,
+    task: (kv: KVNamespace) => Promise<void>
+): Promise<void> {
+    if (pendingDomains.has(domain)) return;
+    pendingDomains.add(domain);
+
+    let kv: KVNamespace | undefined;
+    let waitUntil: ((promise: Promise<unknown>) => void) | undefined;
     try {
-        const { env } = await getCloudflareContext({ async: true });
-        await env.FYPE_TENANT_CACHE.delete(`tenant:${domain}`);
+        const { env, ctx } = await getCloudflareContext({ async: true });
+        kv = env.FYPE_TENANT_CACHE;
+        if (ctx && typeof ctx.waitUntil === "function") waitUntil = ctx.waitUntil.bind(ctx);
     } catch {
-        // Local next dev may not have KV.
+        // Local next dev may not have KV; password gating still works from the API.
+        kv = undefined;
     }
+    if (!kv) {
+        pendingDomains.delete(domain);
+        return;
+    }
+
+    const store = kv;
+    const run = (async () => {
+        try {
+            await task(store);
+        } catch {
+            // A failed KV call is never remembered, so the next request retries.
+        } finally {
+            pendingDomains.delete(domain);
+        }
+    })();
+    if (waitUntil) waitUntil(run);
+    else await run;
+}
+
+// Brings KV in line with the API's answer, writing only when it differs.
+async function syncTenantCache(domain: string, tenant: TenantInfo): Promise<void> {
+    if (isFresh(rememberedTenants.get(domain), tenant, Date.now())) return;
+
+    await runInBackground(domain, async (kv) => {
+        const key = `tenant:${domain}`;
+        // A fresh instance checks what KV already holds before writing. Only
+        // for "published": a stale cached "published" read must never stop an
+        // "unpublished" write, so that one is always written.
+        if (tenant.isPublished !== false && !rememberedTenants.has(domain)) {
+            // Throws if KV can't be read: no write, nothing remembered.
+            const stored = await kv.getWithMetadata<TenantInfo, TenantCacheMetadata>(key, "json");
+            const writtenAt = stored.metadata?.writtenAt ?? 0;
+            const entry = stored.value?.shopId ? { tenant: stored.value, writtenAt } : undefined;
+            if (entry && isFresh(entry, tenant, Date.now())) {
+                remember(domain, tenant, writtenAt);
+                return;
+            }
+        }
+        const writtenAt = Date.now();
+        await kv.put(key, JSON.stringify(tenant), {
+            expirationTtl: CACHE_TTL_SECONDS,
+            metadata: { writtenAt } satisfies TenantCacheMetadata,
+        });
+        remember(domain, tenant, writtenAt);
+    });
+}
+
+// Deletes the KV entry for a host that lost its store, but only when this
+// instance knows it wrote one: hosts with no store (bots trying random
+// subdomains) cost no KV call. An entry no instance remembers expires on its
+// own, and is never used while the API answers.
+async function forgetTenantCache(domain: string): Promise<void> {
+    if (!rememberedTenants.has(domain)) return;
+
+    await runInBackground(domain, async (kv) => {
+        await kv.delete(`tenant:${domain}`);
+        rememberedTenants.delete(domain);
+    });
+}
+
+// Tests only: clears what this instance remembers between tests.
+export function resetTenantCacheMemoryForTests(): void {
+    rememberedTenants.clear();
+    pendingDomains.clear();
 }
 
 // Host -> API (publish state must be fresh) -> KV only if the backend can't
 // answer (network error, timeout, any non-404 error status). A 404 is final: it
-// deletes and is never overridden by a cached tenant, so a host that lost its
-// store stops resolving at once.
+// is never overridden by a cached tenant, so a host that lost its store stops
+// resolving at once. KV is written only when the answer changes (see
+// syncTenantCache), in the background.
 // Called from middleware, so this must stay edge-safe.
 export async function resolveTenant(domain: string): Promise<TenantLookup> {
     let apiBaseUrl: string | null = null;
@@ -109,11 +223,11 @@ export async function resolveTenant(domain: string): Promise<TenantLookup> {
     if (apiBaseUrl) {
         const result = await fetchTenantFromApi(domain, apiBaseUrl);
         if (result.kind === "found") {
-            await writeTenantCache(domain, result.tenant);
+            await syncTenantCache(domain, result.tenant);
             return { status: "found", tenant: result.tenant };
         }
         if (result.kind === "not_found") {
-            await deleteTenantCache(domain);
+            await forgetTenantCache(domain);
             return { status: "not_found" };
         }
     }

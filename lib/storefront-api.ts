@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type {
     Category,
@@ -35,7 +36,13 @@ const PAGES_REVALIDATE = 300; // nav/footer CMS links — rarely change
 const CATEGORY_REVALIDATE = 300; // category list/art — rarely changes
 const PRODUCT_DETAIL_REVALIDATE = 30; // PDP — stock/price accuracy matters most right at the purchase decision
 
-async function fetchJson<T>(url: string, revalidateSeconds: number = REVALIDATE_SECONDS): Promise<T> {
+// One backend call per URL per request. The layout, the page and each one's
+// generateMetadata all ask for the same store, theme and catalog data; on the
+// deployed Worker nothing merged those calls (measured 2026-11-12: 19 API calls
+// for one home page view, 8 with cache()). React's cache() lasts one server
+// request only, so data is exactly as fresh as before and nothing is shared
+// between requests or stores. The results are shared objects: don't mutate them.
+async function fetchJsonUncached<T>(url: string, revalidateSeconds: number = REVALIDATE_SECONDS): Promise<T> {
     const res = await fetch(url, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: revalidateSeconds },
@@ -44,7 +51,9 @@ async function fetchJson<T>(url: string, revalidateSeconds: number = REVALIDATE_
     return res.json() as Promise<T>;
 }
 
-export async function getShopByDomain(apiBaseUrl: string, domain: string): Promise<ShopIdentity | null> {
+const fetchJson = cache(fetchJsonUncached) as typeof fetchJsonUncached;
+
+async function getShopByDomainUncached(apiBaseUrl: string, domain: string): Promise<ShopIdentity | null> {
     try {
         // Publish state is a live access control bit — do not serve a 5-minute
         // cached "store is live" after the merchant switches to development.
@@ -60,7 +69,11 @@ export async function getShopByDomain(apiBaseUrl: string, domain: string): Promi
     }
 }
 
-export async function getTheme(apiBaseUrl: string, storeId: string): Promise<ThemeCustomization | null> {
+// Still uncached between requests (cache: "no-store"); cache() only merges the
+// repeat calls within one request.
+export const getShopByDomain = cache(getShopByDomainUncached);
+
+async function getThemeUncached(apiBaseUrl: string, storeId: string): Promise<ThemeCustomization | null> {
     try {
         // Theme edits must be visible immediately in the storefront/editor
         // preview. Using the shared ISR helper here could serve the previous
@@ -76,6 +89,8 @@ export async function getTheme(apiBaseUrl: string, storeId: string): Promise<The
         return null;
     }
 }
+
+export const getTheme = cache(getThemeUncached);
 
 export async function getPagesByLocation(
     apiBaseUrl: string,

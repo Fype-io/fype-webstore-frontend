@@ -41,6 +41,17 @@
 			"id": "55ab9eaeeee0478494db64b87b26389e"
 		}
 	],
+	// Next's fetch Data Cache (open-next.config.ts). The binding name is fixed by
+	// OpenNext. Staging has its own bucket. A lifecycle rule deletes objects after
+	// 7 days: each deploy writes under a new build id, so old builds' entries
+	// would pile up. `opennextjs-cloudflare deploy` writes to this bucket, so the
+	// deploy token needs Workers R2 Storage: Edit.
+	"r2_buckets": [
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "fype-storefront-cache"
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
@@ -126,6 +137,13 @@
 				{
 					"binding": "FYPE_TENANT_CACHE",
 					"id": "ce0145c93daa45a6912208646d4e2d3d"
+				}
+			],
+			// Staging's own fetch Data Cache bucket (see the top-level r2_buckets).
+			"r2_buckets": [
+				{
+					"binding": "NEXT_INC_CACHE_R2_BUCKET",
+					"bucket_name": "fype-storefront-cache-staging"
 				}
 			],
 			"services": [

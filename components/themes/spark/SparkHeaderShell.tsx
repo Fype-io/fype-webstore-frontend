@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Header from "./Header";
 import type { SparkConfig } from "./sparkConfig";
 
@@ -26,6 +27,23 @@ export default function SparkHeaderShell({
   heroOverlap = false,
 }: SparkHeaderShellProps) {
   const { header, announcement_bar: announcementBar } = config.sections;
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // When the header floats over the hero, publish its height so the hero can
+  // keep top-aligned content clear of it (see BannerSlider).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!heroOverlap || !el) return;
+    const publish = () => document.documentElement.style.setProperty("--spark-header-h", `${el.offsetHeight}px`);
+    publish();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(publish) : null;
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      document.documentElement.style.removeProperty("--spark-header-h");
+    };
+  }, [heroOverlap, header.hidden]);
+
   const { logo: logoSettings } = config.theme_settings;
 
   if (header.hidden) return null;
@@ -51,7 +69,7 @@ export default function SparkHeaderShell({
       : sectionProps.className;
 
   return (
-    <div id="spark-section-header" {...sectionProps} className={className}>
+    <div id="spark-section-header" ref={rootRef} {...sectionProps} className={className}>
       {isEditorPreview && (
         <div
           className={`absolute inset-0 z-100 pointer-events-none transition-colors ${

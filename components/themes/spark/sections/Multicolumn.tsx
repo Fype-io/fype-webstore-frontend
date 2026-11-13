@@ -31,7 +31,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
             <div className="max-w-7xl mx-auto px-6">
                 {settings.section_heading && (
                     <div className="text-center mb-16">
-                        <h2 className="font-bold tracking-tight mb-4 text-3xl md:text-4xl">{settings.section_heading}</h2>
+                        <h2 className="font-semibold tracking-tight mb-4 text-2xl md:text-3xl">{settings.section_heading}</h2>
                     </div>
                 )}
 

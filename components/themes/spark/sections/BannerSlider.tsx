@@ -95,9 +95,13 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
         return () => window.clearTimeout(timer);
     }, [isSlideSelectedInEditor, slides, currentIndex]);
 
+    const adaptToImage = settings.banner_height === "Adapt to image";
     let heightClass = "min-h-[750px] lg:min-h-[850px]";
     if (settings.banner_height === "Small") heightClass = "min-h-[400px] lg:min-h-[500px]";
     if (settings.banner_height === "Medium") heightClass = "min-h-[550px] lg:min-h-[650px]";
+
+    // With no image to adapt to, an empty slide keeps a Medium-sized box.
+    if (adaptToImage) heightClass = "";
 
     if (slides.length === 0) {
         return (
@@ -109,7 +113,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                     paddingBottom: `${settings.padding_bottom}px`,
                 }}
             >
-                <div className={`w-full flex items-center justify-center bg-gray-100 ${heightClass}`} />
+                <div className={`w-full flex items-center justify-center bg-gray-100 ${heightClass || "min-h-[550px] lg:min-h-[650px]"}`} />
             </div>
         );
     }
@@ -132,7 +136,10 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
     if (s.content_horizontal_alignment === "Right") horizAlign = "items-end text-right";
 
     let vertAlign = "justify-center";
-    if (s.content_vertical_alignment === "Top") vertAlign = "justify-start pt-20";
+    // Top: clear the fixed announcement bar + header that float over the hero
+    // (--spark-header-h is set by SparkHeaderShell; falls back to 3.5rem, so 5rem total as before, when nothing overlaps).
+    const topPadding = "calc(var(--spark-header-h, 3.5rem) + 1.5rem)";
+    if (s.content_vertical_alignment === "Top") vertAlign = "justify-start";
     if (s.content_vertical_alignment === "Bottom") vertAlign = "justify-end pb-20";
 
     let headingSizeClass = "text-5xl md:text-[5rem]";
@@ -155,15 +162,15 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                 onSlideClick?.(slide.id);
             }}
         >
-            <div className={`relative w-full overflow-hidden flex flex-col ${heightClass} ${isEditorPreview ? "group/block" : ""}`}>
-            <AnimatePresence>
+            <div className={`relative w-full overflow-hidden flex flex-col ${adaptToImage && !s.image_url ? "min-h-[550px] lg:min-h-[650px]" : heightClass} ${isEditorPreview ? "group/block" : ""}`}>
+            <AnimatePresence mode={adaptToImage ? "popLayout" : "sync"}>
                 <motion.div
                     key={slide.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.8 }}
-                    className={`absolute inset-0 w-full h-full ${isEditorPreview ? "cursor-pointer" : ""}`}
+                    className={`${adaptToImage && s.image_url ? "relative" : "absolute inset-0 h-full"} w-full ${isEditorPreview ? "cursor-pointer" : ""}`}
                 >
                     {s.image_url ? (
                         // <picture> so each device downloads only its own image.
@@ -175,8 +182,8 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                                 src={s.image_url}
                                 alt=""
                                 draggable={false}
-                                className={`absolute inset-0 w-full h-full select-none ${objectFitClass}`}
-                                style={{ objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                                className={adaptToImage ? "block w-full h-auto select-none" : `absolute inset-0 w-full h-full select-none ${objectFitClass}`}
+                                style={adaptToImage ? undefined : { objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
                             />
                         </picture>
                     ) : (
@@ -198,8 +205,8 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
             </AnimatePresence>
 
             <div
-                className={`relative z-10 flex flex-col flex-1 w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
-                style={{ paddingTop: 0, paddingBottom: 0 }}
+                className={`${adaptToImage && s.image_url ? "absolute inset-0" : "relative flex-1"} z-10 flex flex-col w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
+                style={{ paddingTop: s.content_vertical_alignment === "Top" ? topPadding : 0, paddingBottom: 0 }}
             >
                 {headingHtml && (
                     <motion.h2
@@ -218,7 +225,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
-                        className={`text-white/80 ${s.text_style === "Subtitle" ? "tracking-[0.2em] text-xs sm:text-sm font-semibold uppercase spark-font-subheading" : "text-base sm:text-lg"} max-w-2xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline-offset-4`}
+                        className={`text-white/80 ${s.text_style === "Subtitle" ? "tracking-[0.2em] text-xs sm:text-sm font-semibold spark-font-subheading" : "text-base sm:text-lg"} max-w-2xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline-offset-4`}
                         style={{ color: s.text_color }}
                         dangerouslySetInnerHTML={{ __html: bodyHtml }}
                     />

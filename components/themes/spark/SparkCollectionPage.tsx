@@ -220,7 +220,7 @@ export default function SparkCollectionPage({
                     )}
 
                     <div className="flex items-center justify-between mb-8">
-                        {sectionTitle && <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{sectionTitle}</h2>}
+                        {sectionTitle && <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{sectionTitle}</h2>}
                         {settings.show_product_count && <span className="text-gray-500 font-medium">{products.length} Products</span>}
                     </div>
 

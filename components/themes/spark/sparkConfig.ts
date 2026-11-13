@@ -96,7 +96,7 @@ export interface SparkBannerSlideBlock {
 }
 
 export interface SparkImageBannerSettings {
-    banner_height: "Small" | "Medium" | "Large";
+    banner_height: "Small" | "Medium" | "Large" | "Adapt to image";
     background_color: string;
     padding_top: number;
     padding_bottom: number;

@@ -235,7 +235,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
                 </div>
             )}
             {settings.section_heading && <h2 className="text-sm font-bold tracking-widest uppercase text-gray-500 mb-2">{settings.section_heading}</h2>}
-            <h3 className="font-medium tracking-tight text-gray-900 mb-3 md:mb-4 text-4xl lg:text-5xl">{displayProduct.name}</h3>
+            <h3 className="font-medium tracking-tight text-gray-900 mb-3 md:mb-4 text-3xl lg:text-4xl">{displayProduct.name}</h3>
 
             {settings.show_price && (
                 <div className="flex items-center gap-4 mt-1 mb-8">

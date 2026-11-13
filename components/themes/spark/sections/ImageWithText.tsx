@@ -201,7 +201,7 @@ export default function ImageWithText({ settings, blocks, isEditorPreview = fals
                             if (item.type === "Text") {
                                 const styleClass =
                                     item.settings.style === "Subtitle"
-                                        ? "tracking-[0.2em] text-xs sm:text-sm font-semibold block uppercase spark-font-subheading"
+                                        ? "tracking-[0.2em] text-xs sm:text-sm font-semibold block spark-font-subheading"
                                         : "text-gray-600 text-lg leading-relaxed block [&_p]:mb-4 last:[&_p]:mb-0";
                                 return (
                                     <Fragment key={item.id}>

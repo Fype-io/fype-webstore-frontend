@@ -175,7 +175,7 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-12 gap-8 border-b border-gray-100 pb-8">
                     <div className={settings.page_title_alignment === "Center" ? "w-full text-center" : ""}>
                         {settings.show_page_title && (
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{settings.page_title}</h1>
+                            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{settings.page_title}</h1>
                         )}
                         <p className="text-gray-500 mt-2">{pagination?.totalItems ?? products.length} products</p>
                     </div>

@@ -10,6 +10,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { cartTotalCount, useSparkCart } from "./SparkCartContext";
 import AuthModal from "@/components/shared/AuthModal";
 import { getCurrentStoreId } from "@/lib/client-store-context";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface SparkHeaderProps {
     header: SparkHeaderSettings;
@@ -270,7 +271,7 @@ export default function Header({
         const link = block.settings.link ? resolveAnnouncementLink(block.settings.link) : null;
         const content = (
             <div
-                dangerouslySetInnerHTML={{ __html: block.settings.text || "Welcome to our store" }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.text) || "Welcome to our store" }}
                 className="[&_p]:inline [&_p]:m-0"
             />
         );

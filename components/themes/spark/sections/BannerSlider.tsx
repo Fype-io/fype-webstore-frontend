@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import type { SparkBannerSlideBlock, SparkImageBannerSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface BannerSliderProps {
     settings: SparkImageBannerSettings;
@@ -258,7 +259,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                         transition={{ delay: 0.3, duration: 0.5 }}
                         className={`font-medium tracking-tight text-white leading-tight ${headingSizeClass} max-w-5xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline [&_a]:underline-offset-4`}
                         style={{ color: s.heading_color }}
-                        dangerouslySetInnerHTML={{ __html: headingHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingHtml) }}
                     />
                 )}
                 {bodyHtml && (
@@ -269,7 +270,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                         transition={{ delay: 0.2, duration: 0.5 }}
                         className={`text-white/80 ${s.text_style === "Subtitle" ? "tracking-[0.2em] text-xs sm:text-sm font-semibold spark-font-subheading" : "text-base sm:text-lg"} max-w-2xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline-offset-4`}
                         style={{ color: s.text_color }}
-                        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(bodyHtml) }}
                     />
                 )}
                 {s.button_label && (

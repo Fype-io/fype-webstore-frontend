@@ -132,4 +132,15 @@ describe("Spark BannerSlider layout", () => {
             ).not.toContain("spark-match-ar");
         });
     });
+
+    it("shows text that was pasted with another page's formatting like typed text (inline styles dropped)", () => {
+        const c = renderSlide({
+            heading_text: `<span style="font-family: 'Times New Roman'; font-size: 13px; letter-spacing: -1px">Smell like you mean it</span>`,
+            text: `<p style="font-size:10px">the new standard</p>`,
+        });
+        const h2 = c.querySelector("h2")!;
+        expect(h2.innerHTML).toBe("Smell like you mean it");
+        expect(h2.querySelector("[style]")).toBeNull();
+        expect(c.querySelector(".spark-font-subheading")!.querySelector("[style]")).toBeNull();
+    });
 });

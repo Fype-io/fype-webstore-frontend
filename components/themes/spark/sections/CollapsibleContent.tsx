@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState, type MouseEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SparkCollapsibleContentSettings, SparkCollapsibleItemBlock } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface CollapsibleContentProps {
     settings: SparkCollapsibleContentSettings;
@@ -68,7 +69,7 @@ export default function CollapsibleContent({ settings, items, isEditorPreview = 
                                 <span
                                     className="font-medium text-lg pr-4 group-hover:!text-black"
                                     style={{ color: isOpen ? settings.text_color : `${settings.text_color}cc` }}
-                                    dangerouslySetInnerHTML={{ __html: item.settings.title }}
+                                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.settings.title) }}
                                 />
                                 <span
                                     className="w-8 h-8 rounded-full flex items-center justify-center border shrink-0 transition-colors"
@@ -89,7 +90,7 @@ export default function CollapsibleContent({ settings, items, isEditorPreview = 
                                         <div
                                             className="p-6 border-t border-gray-100 leading-relaxed bg-black/5 [&_p]:mb-4 last:[&_p]:mb-0 [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:opacity-80 transition-opacity"
                                             style={{ color: `${settings.text_color}cc`, borderColor: `${settings.text_color}1a` }}
-                                            dangerouslySetInnerHTML={{ __html: item.settings.content }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.settings.content) }}
                                         />
                                     </motion.div>
                                 )}

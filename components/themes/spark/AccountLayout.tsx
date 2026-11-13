@@ -39,7 +39,7 @@ export default function AccountLayout({ title: _title, storeId, children }: Acco
         <div className="py-12 md:py-20 px-4 sm:px-6 max-w-6xl mx-auto min-h-full font-sans w-full flex-grow">
             <div className="flex items-center justify-between mb-8 pb-8 border-b border-gray-200 gap-4 min-w-0">
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2 leading-tight">My Account</h1>
+                    <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-2 leading-tight">My Account</h1>
                     <p className="text-gray-500 font-medium text-sm md:text-base truncate">
                         Welcome back{firstName ? `, ${firstName}` : ""}.
                     </p>
@@ -47,7 +47,7 @@ export default function AccountLayout({ title: _title, storeId, children }: Acco
                 <button
                     type="button"
                     onClick={handleSignOut}
-                    className="text-gray-400 hover:text-black transition-colors font-bold text-[10px] md:text-xs uppercase tracking-wider flex items-center gap-1.5 group shrink-0 spark-font-body"
+                    className="text-gray-600 hover:text-black transition-colors font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 group shrink-0 spark-font-body"
                 >
                     <span className="hidden sm:block">Sign out</span>
                     <span className="sm:hidden">Log out</span>

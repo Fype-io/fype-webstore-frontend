@@ -56,7 +56,7 @@ export default function ProductCard({
     disableQuickAdd = false,
     showWishlistButton = false,
 }: SparkProductCardProps) {
-    const { prefix } = useStoreCurrency();
+    const { format } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -160,13 +160,13 @@ export default function ProductCard({
                 </div>
                 <div>
                     {showName && (
-                        <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors truncate">{product.name}</h3>
+                        <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2 min-h-[3rem]">{product.name}</h3>
                     )}
                     {showPrice && (
                     <div className="flex items-center gap-2 mt-1.5">
-                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">{prefix}{compareDisplayPrice}</p>}
-                        <p className="text-gray-500">
-                            {product.hasVariants && price !== maxPrice ? `${prefix}${displayPrice} – ${prefix}${maxDisplayPrice}` : `${prefix}${displayPrice}`}
+                        {product.hasDiscount && <p className="opacity-50 text-sm line-through">{format(compareDisplayPrice, 2)}</p>}
+                        <p className="font-medium">
+                            {product.hasVariants && price !== maxPrice ? `${format(displayPrice, 2)} – ${format(maxDisplayPrice, 2)}` : format(displayPrice, 2)}
                         </p>
                     </div>
                     )}

@@ -76,7 +76,7 @@ interface FeaturedProductCardProps {
 // (no variant picker in a grid card) and just link through to the PDP like
 // the rest of the card already does.
 function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: FeaturedProductCardProps) {
-    const { prefix } = useStoreCurrency();
+    const { format } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -163,10 +163,10 @@ function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: F
                     )}
                 </div>
                 <div>
-                    <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors truncate">{product.name}</h3>
+                    <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2 min-h-[3rem]">{product.name}</h3>
                     <div className="flex items-center gap-2 mt-1.5">
-                        {product.hasDiscount && <p className="text-gray-400 text-sm line-through">{prefix}{compareDisplayPrice}</p>}
-                        <p className="text-gray-500">{prefix}{displayPrice}</p>
+                        {product.hasDiscount && <p className="opacity-50 text-sm line-through">{format(compareDisplayPrice, 2)}</p>}
+                        <p className="font-medium">{format(displayPrice, 2)}</p>
                     </div>
                 </div>
             </Link>
@@ -266,7 +266,7 @@ export default function FeaturedCollection({
                     </div>
                 )}
                 <div className="flex items-end justify-between mb-12">
-                    <h2 className="font-bold tracking-tight text-3xl md:text-4xl">{settings.section_heading}</h2>
+                    <h2 className="font-semibold tracking-tight text-2xl md:text-3xl">{settings.section_heading}</h2>
                     {settings.goto_label && !hasMore && (
                         <a
                             href={gotoLink}
@@ -295,7 +295,7 @@ export default function FeaturedCollection({
                     <div className="mt-12 flex justify-center">
                         <a
                             href={gotoLink}
-                            className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-gray-900 font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                            className="spark-view-all inline-flex items-center gap-2 px-8 py-3.5 rounded-full uppercase tracking-widest text-xs font-medium"
                         >
                             {settings.goto_label || "View all"}
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

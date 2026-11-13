@@ -33,3 +33,11 @@ describe("store currency display", () => {
         expect(formatPrice("12.5", "USD")).toBe("$12.5");
     });
 });
+
+describe("formatPrice with two decimals", () => {
+    it("groups thousands and always shows two decimals", () => {
+        expect(formatPrice(2153, "AED", 2)).toBe("AED 2,153.00");
+        expect(formatPrice(161.6, "AED", 2)).toBe("AED 161.60");
+        expect(formatPrice("644", "AED", 2)).toBe("AED 644.00");
+    });
+});

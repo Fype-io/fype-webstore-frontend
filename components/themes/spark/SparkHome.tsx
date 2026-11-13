@@ -217,9 +217,10 @@ export default function SparkHome({
 
     // Matches the reference exactly: only background/backgroundGradient/text
     // of the active scheme are applied, as an inline style on the page root
-    // — solid_button_background/outline_button/shadow are editable in the
-    // Theme Settings panel but not consumed by any rendering yet, same as
-    // the reference itself (see sparkConfig.ts's SparkColorScheme comment).
+    // — solid_button_background/shadow are editable in the Theme Settings panel
+    // but not consumed by any rendering yet, same as the reference itself (see
+    // sparkConfig.ts's SparkColorScheme comment). outline_button and the
+    // background also feed the "View all" buttons (spark.css .spark-view-all).
     const activeScheme =
         colorSchemeSettings.schemes.find((s) => s.id === colorSchemeSettings.active_scheme_id) ?? colorSchemeSettings.schemes[0];
     const fontStack = (font?: string) => {
@@ -231,6 +232,9 @@ export default function SparkHome({
         backgroundColor: activeScheme?.background,
         backgroundImage: activeScheme?.background_gradient || undefined,
         color: activeScheme?.text,
+        // Scheme colours for the buttons that follow the scheme (spark.css .spark-view-all).
+        ...(activeScheme?.outline_button ? { ["--spark-outline" as string]: activeScheme.outline_button } : {}),
+        ...(activeScheme?.background ? { ["--spark-bg" as string]: activeScheme.background } : {}),
         ["--spark-heading-font" as string]: fontStack(liveConfig.theme_settings.typography.heading_font),
         ["--spark-body-font" as string]: fontStack(liveConfig.theme_settings.typography.body_font),
         ["--spark-accent-font" as string]: fontStack(liveConfig.theme_settings.typography.sub_heading_font),

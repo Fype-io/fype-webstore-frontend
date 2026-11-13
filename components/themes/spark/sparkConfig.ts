@@ -46,6 +46,8 @@ export interface SparkHeaderSettings {
     navigation: string[];
     sticky_header: boolean;
     glass_effect: boolean;
+    // Logo shown while the glass header is transparent over the banner; empty = the main logo.
+    glass_logo_url?: string;
     background_color: string;
     foreground_color: string;
 }
@@ -96,7 +98,7 @@ export interface SparkBannerSlideBlock {
 }
 
 export interface SparkImageBannerSettings {
-    banner_height: "Small" | "Medium" | "Large";
+    banner_height: "Small" | "Medium" | "Large" | "Adapt to image";
     background_color: string;
     padding_top: number;
     padding_bottom: number;

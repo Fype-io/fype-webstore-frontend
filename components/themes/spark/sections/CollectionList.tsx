@@ -112,7 +112,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
                 </div>
             )}
             <div className="flex items-end justify-between mb-12">
-                {settings.section_heading && <h2 className="font-bold tracking-tight text-3xl md:text-4xl">{settings.section_heading}</h2>}
+                {settings.section_heading && <h2 className="font-semibold tracking-tight text-2xl md:text-3xl">{settings.section_heading}</h2>}
                 {settings.goto_label && !hasMore && (
                     <a href={viewAllHref} className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors">
                         {settings.goto_label}
@@ -149,7 +149,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
                 <div className="mt-12 flex justify-center">
                     <a
                         href={viewAllHref}
-                        className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-gray-900 font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                        className="spark-view-all inline-flex items-center gap-2 px-8 py-3.5 rounded-full uppercase tracking-widest text-xs font-medium"
                     >
                         {viewAllLabel}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -186,7 +186,7 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
             )}
             <div className="py-12 md:py-16 px-6 max-w-7xl mx-auto">
                 <div className="text-center mb-16">
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{heading ?? settings.page_title}</h1>
+                    <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">{heading ?? settings.page_title}</h1>
                     <p className="text-gray-500 text-lg max-w-xl mx-auto">{subheading ?? settings.subtitle}</p>
                 </div>
 

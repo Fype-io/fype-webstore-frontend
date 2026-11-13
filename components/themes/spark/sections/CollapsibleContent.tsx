@@ -52,7 +52,7 @@ export default function CollapsibleContent({ settings, items, isEditorPreview = 
             className="px-6 max-w-3xl mx-auto w-full"
         >
             <div className="text-center mb-16" style={{ color: settings.text_color }}>
-                {settings.section_heading && <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{settings.section_heading}</h2>}
+                {settings.section_heading && <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{settings.section_heading}</h2>}
             </div>
             <div className="space-y-4">
                 {items.map((item) => {

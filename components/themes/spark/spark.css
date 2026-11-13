@@ -112,3 +112,15 @@
     background-color: var(--spark-outline, #111827);
     color: var(--spark-bg, #ffffff);
 }
+
+/* Banner height "Match image": reserve the image's shape before it loads (sizes saved by
+   the editor), so the page doesn't jump. Phones use the phone image's shape when there is one. */
+.spark-match-ar {
+    aspect-ratio: var(--spark-ar-d);
+}
+
+@media (max-width: 767px) {
+    .spark-match-ar {
+        aspect-ratio: var(--spark-ar-m, var(--spark-ar-d));
+    }
+}

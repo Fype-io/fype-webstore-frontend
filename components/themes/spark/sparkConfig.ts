@@ -48,6 +48,8 @@ export interface SparkHeaderSettings {
     glass_effect: boolean;
     // Logo shown while the glass header is transparent over the banner; empty = the main logo.
     glass_logo_url?: string;
+    // Width of the glass-mode logo in px; unset = the main logo's width.
+    glass_logo_width?: number;
     background_color: string;
     foreground_color: string;
 }
@@ -63,6 +65,11 @@ export interface SparkBannerSlideBlockSettings {
     // the `md` breakpoint. Empty/missing = phones use image_url, so slides
     // saved before this field existed render exactly as before.
     mobile_image_url?: string;
+    // Pixel sizes saved by the editor when the image is picked; lets "Match image" reserve the banner's height before the image loads.
+    image_width?: number;
+    image_height?: number;
+    mobile_image_width?: number;
+    mobile_image_height?: number;
     image_fit: "Cover" | "Contain" | "Stretch" | "Original Size";
     overlay_color: string;
     overlay_opacity: number;

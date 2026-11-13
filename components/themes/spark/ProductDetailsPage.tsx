@@ -364,7 +364,7 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
 
                 <div className="w-full md:w-1/2 min-w-0 flex flex-col pt-0 md:pt-4">
                     <div className="mb-8">
-                        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-4 break-words">{product.name}</h1>
+                        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 mb-4 break-words">{product.name}</h1>
                         <p className="text-2xl text-gray-500 font-medium break-words">
                             {prefix}{displayPrice}
                             {displayData.compareAtPrice > displayData.price && (

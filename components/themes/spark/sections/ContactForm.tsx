@@ -101,7 +101,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
         >
             <div className="max-w-xl mx-auto px-6">
                 <div className="text-center mb-10 md:mb-16">
-                    {settings.heading && <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" dangerouslySetInnerHTML={{ __html: settings.heading }} />}
+                    {settings.heading && <h2 className="text-2xl md:text-3xl font-semibold tracking-tight mb-4" dangerouslySetInnerHTML={{ __html: settings.heading }} />}
                     {settings.subtext && <div className="text-gray-600 text-lg" dangerouslySetInnerHTML={{ __html: settings.subtext }} />}
                 </div>
 

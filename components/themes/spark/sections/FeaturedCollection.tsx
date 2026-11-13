@@ -266,7 +266,7 @@ export default function FeaturedCollection({
                     </div>
                 )}
                 <div className="flex items-end justify-between mb-12">
-                    <h2 className="font-bold tracking-tight text-3xl md:text-4xl">{settings.section_heading}</h2>
+                    <h2 className="font-semibold tracking-tight text-2xl md:text-3xl">{settings.section_heading}</h2>
                     {settings.goto_label && !hasMore && (
                         <a
                             href={gotoLink}

@@ -16,7 +16,7 @@ const attr = (attrs: string, name: string): string | null => {
 
 const safeHref = (raw: string): string | null => {
   // eslint-disable-next-line no-control-regex
-  const compact = raw.replace(/[\u0000-  ]+/g, '').toLowerCase();
+  const compact = raw.replace(/[\x00-\x20\s]+/g, '').toLowerCase();
   if (/^(javascript|data|vbscript):/.test(compact)) return null;
   return raw.trim().replace(/"/g, '&quot;');
 };

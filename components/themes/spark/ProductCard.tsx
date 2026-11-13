@@ -160,7 +160,7 @@ export default function ProductCard({
                 </div>
                 <div>
                     {showName && (
-                        <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2">{product.name}</h3>
+                        <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2 min-h-[3rem]">{product.name}</h3>
                     )}
                     {showPrice && (
                     <div className="flex items-center gap-2 mt-1.5">

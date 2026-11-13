@@ -1,6 +1,7 @@
 "use client";
 
 import type { SparkRichTextBlock, SparkRichTextSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface RichTextProps {
     settings: SparkRichTextSettings;
@@ -69,7 +70,7 @@ export default function RichText({ settings, blocks, isEditorPreview = false, ac
                                     <h2
                                         className={`font-light tracking-tight leading-[1.3] ${sizeClass}`}
                                         style={{ color }}
-                                        dangerouslySetInnerHTML={{ __html: text }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(text) }}
                                     />
                                 )}
                             </div>
@@ -86,7 +87,7 @@ export default function RichText({ settings, blocks, isEditorPreview = false, ac
                                     <div
                                         className={`font-medium max-w-xl mx-auto tracking-widest [&_p]:mb-4 last:[&_p]:mb-0 [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:text-gray-900 transition-colors ${style === "Subtitle" ? "text-sm spark-font-subheading" : "text-xs"}`}
                                         style={{ color }}
-                                        dangerouslySetInnerHTML={{ __html: text }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(text) }}
                                     />
                                 )}
                             </div>

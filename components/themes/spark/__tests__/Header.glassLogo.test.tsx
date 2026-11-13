@@ -65,4 +65,17 @@ describe("Spark header: logo in glass mode", () => {
         expect(logoSrc({ glass_effect: false })).toBe(MAIN);
         expect(logoSrc({}, false)).toBe(MAIN);
     });
+
+    it("gives the glass logo its own width, and the main logo's width when none is set", () => {
+        const width = (over: Partial<typeof baseHeader> & { glass_logo_width?: number }) => {
+            const { container } = render(
+                <Provider store={makeStore()}>
+                    <Header header={{ ...baseHeader, ...over }} navItems={[]} announcementBlocks={[]} logoUrl={MAIN} logoWidth={120} heroOverlap />
+                </Provider>,
+            );
+            return (container.querySelector("a[href='/'] img")!.parentElement as HTMLElement).style.width;
+        };
+        expect(width({ glass_logo_width: 180 })).toBe("180px");
+        expect(width({})).toBe("120px");
+    });
 });

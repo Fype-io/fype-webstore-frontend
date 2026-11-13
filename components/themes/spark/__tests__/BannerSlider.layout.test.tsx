@@ -32,12 +32,23 @@ const renderSlide = (o: Partial<SparkBannerSlideBlockSettings>, height: SparkIma
     render(<BannerSlider settings={{ ...section, banner_height: height }} slides={[{ id: "s1", settings: { ...baseSlide, ...o } }]} />).container;
 
 describe("Spark BannerSlider layout", () => {
-    it("Adapt to image: no minimum height and the image sits in normal flow at natural height", () => {
+    it("Adapt to image: no minimum height; image and text share one grid cell so the text can't be clipped", () => {
         const c = renderSlide({}, "Adapt to image");
         const img = c.querySelector("img")!;
-        expect(img.className).toContain("h-auto");
         expect(img.className).not.toContain("absolute");
         expect(c.innerHTML).not.toContain("min-h-[");
+        expect(c.querySelector(".grid")).not.toBeNull();
+        expect(c.querySelector("h2")!.parentElement!.className).toContain("row-start-1");
+    });
+
+    it("Adapt to image still serves the phone image to phones", () => {
+        const c = renderSlide({ mobile_image_url: "https://cdn.example.com/portrait.jpg" }, "Adapt to image");
+        expect(c.querySelector("picture > source")).toHaveAttribute("srcset", "https://cdn.example.com/portrait.jpg");
+    });
+
+    it("Adapt to image keeps room for the header on any alignment", () => {
+        const c = renderSlide({}, "Adapt to image");
+        expect((c.querySelector("h2")!.parentElement as HTMLElement).style.paddingTop).toContain("--spark-header-h");
     });
 
     it("fixed heights still use minimum heights and cover-style absolute images", () => {

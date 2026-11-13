@@ -100,7 +100,8 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
     if (settings.banner_height === "Small") heightClass = "min-h-[400px] lg:min-h-[500px]";
     if (settings.banner_height === "Medium") heightClass = "min-h-[550px] lg:min-h-[650px]";
 
-    // With no image to adapt to, an empty slide keeps a Medium-sized box.
+    // Adapt to image: no fixed minimum; the banner is as tall as the image or
+    // the text, whichever is taller (see adaptInFlow below).
     if (adaptToImage) heightClass = "";
 
     if (slides.length === 0) {
@@ -122,6 +123,11 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
     const slide = slides[safeIndex];
     const s = slide.settings;
     const buttonLink = s.button_link ? resolveBannerLink(s.button_link) : { href: "#", external: false };
+
+    // Image and text share one grid cell, so a short phone image can't shrink
+    // the banner below its own text. Without an image there's nothing to adapt
+    // to, so it keeps a Medium-sized box.
+    const adaptInFlow = adaptToImage && !!s.image_url;
 
     const headingHtml = s.heading_text || "";
     const bodyHtml = s.text || "";
@@ -162,7 +168,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                 onSlideClick?.(slide.id);
             }}
         >
-            <div className={`relative w-full overflow-hidden flex flex-col ${adaptToImage && !s.image_url ? "min-h-[550px] lg:min-h-[650px]" : heightClass} ${isEditorPreview ? "group/block" : ""}`}>
+            <div className={`relative w-full overflow-hidden ${adaptInFlow ? "grid" : "flex flex-col"} ${adaptToImage && !s.image_url ? "min-h-[550px] lg:min-h-[650px]" : heightClass} ${isEditorPreview ? "group/block" : ""}`}>
             <AnimatePresence mode={adaptToImage ? "popLayout" : "sync"}>
                 <motion.div
                     key={slide.id}
@@ -170,20 +176,20 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.8 }}
-                    className={`${adaptToImage && s.image_url ? "relative" : "absolute inset-0 h-full"} w-full ${isEditorPreview ? "cursor-pointer" : ""}`}
+                    className={`${adaptInFlow ? "relative col-start-1 row-start-1" : "absolute inset-0 h-full"} w-full ${isEditorPreview ? "cursor-pointer" : ""}`}
                 >
                     {s.image_url ? (
                         // <picture> so each device downloads only its own image.
                         // Keyed so a changed image or a breakpoint crossing
                         // remounts it (see useMobileMediaFlips).
-                        <picture key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
+                        <picture className={adaptInFlow ? "block h-full" : undefined} key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
                             {s.mobile_image_url && <source media={MOBILE_IMAGE_MEDIA} srcSet={toSrcSetUrl(s.mobile_image_url)} />}
                             <img
                                 src={s.image_url}
                                 alt=""
                                 draggable={false}
-                                className={adaptToImage ? "block w-full h-auto select-none" : `absolute inset-0 w-full h-full select-none ${objectFitClass}`}
-                                style={adaptToImage ? undefined : { objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                                className={adaptInFlow ? "block w-full h-full select-none object-cover" : `absolute inset-0 w-full h-full select-none ${objectFitClass}`}
+                                style={adaptInFlow ? undefined : { objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
                             />
                         </picture>
                     ) : (
@@ -205,8 +211,12 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
             </AnimatePresence>
 
             <div
-                className={`${adaptToImage && s.image_url ? "absolute inset-0" : "relative flex-1"} z-10 flex flex-col w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
-                style={{ paddingTop: s.content_vertical_alignment === "Top" ? topPadding : 0, paddingBottom: 0 }}
+                className={`${adaptInFlow ? "relative col-start-1 row-start-1" : "relative flex-1"} z-10 flex flex-col w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
+                style={{
+                    // Adapt: always clear the header, and leave room for the dots, because the text can set the height.
+                    paddingTop: adaptInFlow || s.content_vertical_alignment === "Top" ? topPadding : 0,
+                    paddingBottom: adaptInFlow ? (s.content_vertical_alignment === "Bottom" ? "5rem" : "3rem") : 0,
+                }}
             >
                 {headingHtml && (
                     <motion.h2

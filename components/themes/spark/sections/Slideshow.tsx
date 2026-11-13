@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SparkSlideBlock, SparkSlideshowSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface SlideshowProps {
     settings: SparkSlideshowSettings;
@@ -113,7 +114,7 @@ export default function Slideshow({ settings, slides, isEditorPreview = false, a
                             }
                             style={{ color: isSleek ? "rgba(255,255,255,0.9)" : settings.color }}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: s.text }} />
+                            <span dangerouslySetInnerHTML={{ __html: sanitizeRichText(s.text) }} />
                         </motion.span>
                     )}
                     {s.heading && (
@@ -129,7 +130,7 @@ export default function Slideshow({ settings, slides, isEditorPreview = false, a
                             }
                             style={{ color: isSleek ? "#ffffff" : settings.color }}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: s.heading }} />
+                            <span dangerouslySetInnerHTML={{ __html: sanitizeRichText(s.heading) }} />
                         </motion.h2>
                     )}
 

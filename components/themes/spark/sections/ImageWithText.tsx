@@ -2,6 +2,7 @@
 
 import { Fragment } from "react";
 import type { SparkImageWithTextBlock, SparkImageWithTextSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 type ButtonBlock = Extract<SparkImageWithTextBlock, { type: "Button" }>;
 
@@ -209,7 +210,7 @@ export default function ImageWithText({ settings, blocks, isEditorPreview = fals
                                             "text",
                                             item.id,
                                             "Text",
-                                            <span className={styleClass} style={{ color: item.settings.color || undefined }} dangerouslySetInnerHTML={{ __html: item.settings.text }} />
+                                            <span className={styleClass} style={{ color: item.settings.color || undefined }} dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.settings.text) }} />
                                         )}
                                     </Fragment>
                                 );
@@ -226,7 +227,7 @@ export default function ImageWithText({ settings, blocks, isEditorPreview = fals
                                             <h2
                                                 className={`font-bold tracking-tight text-gray-900 leading-tight ${sizeClass}`}
                                                 style={{ color: item.settings.color || undefined }}
-                                                dangerouslySetInnerHTML={{ __html: item.settings.text }}
+                                                dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.settings.text) }}
                                             />
                                         )}
                                     </Fragment>

@@ -163,7 +163,7 @@ function FeaturedProductCard({ product, storeId, globalTax, disableQuickAdd }: F
                     )}
                 </div>
                 <div>
-                    <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2">{product.name}</h3>
+                    <h3 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2 min-h-[3rem]">{product.name}</h3>
                     <div className="flex items-center gap-2 mt-1.5">
                         {product.hasDiscount && <p className="opacity-50 text-sm line-through">{format(compareDisplayPrice, 2)}</p>}
                         <p className="font-medium">{format(displayPrice, 2)}</p>

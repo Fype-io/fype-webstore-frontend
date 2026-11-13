@@ -53,3 +53,9 @@ describe("Spark ProductCard price and title", () => {
         expect(title.className).not.toContain("truncate");
     });
 });
+
+describe("Spark ProductCard title height", () => {
+    it("always reserves two lines, so prices line up across a row", () => {
+        expect(renderCard().querySelector("h3")!.className).toContain("min-h-[3rem]");
+    });
+});

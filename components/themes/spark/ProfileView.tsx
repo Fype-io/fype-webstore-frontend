@@ -8,22 +8,26 @@ interface ProfileViewProps {
     storeId?: string;
 }
 
+function formFromUser(user: User | null) {
+    return {
+        firstName: user ? `${user.firstName ?? ""}${user.lastName ? " " + user.lastName : ""}`.trim() : "",
+        email: user?.email || "",
+        phone: user?.phone || "",
+    };
+}
+
 export default function ProfileView({ storeId }: ProfileViewProps) {
     const dispatch = useAppDispatch();
     const { user, authLoading, authError } = useAppSelector((state) => state.user);
-    const [formData, setFormData] = useState({ firstName: "", email: "", phone: "" });
+    // Start from the signed-in user: when the profile is already loaded on arrival,
+    // `user` never changes afterwards, so the sync below would never fill the form.
+    const [formData, setFormData] = useState(() => formFromUser(user));
     const [successMessage, setSuccessMessage] = useState("");
     const [prevUser, setPrevUser] = useState<User | null>(user);
 
     if (user !== prevUser) {
         setPrevUser(user);
-        if (user) {
-            setFormData({
-                firstName: `${user.firstName}${user.lastName ? " " + user.lastName : ""}`,
-                email: user.email || "",
-                phone: user.phone || "",
-            });
-        }
+        if (user) setFormData(formFromUser(user));
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

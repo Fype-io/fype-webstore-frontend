@@ -98,3 +98,17 @@
 .group:hover .spark-tile-name {
     color: var(--spark-name-hover);
 }
+
+/* "View all" buttons (Featured Collection, Collection List): one outline style
+   that follows the active colour scheme; the fallbacks are the previous look. */
+.spark-view-all {
+    border: 1px solid var(--spark-outline, #111827);
+    color: var(--spark-outline, #111827);
+    background: transparent;
+    transition: color 150ms ease, background-color 150ms ease;
+}
+
+.spark-view-all:hover {
+    background-color: var(--spark-outline, #111827);
+    color: var(--spark-bg, #ffffff);
+}

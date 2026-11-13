@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Order } from "@/redux/slices/userSlice";
 import OrderTracking from "./OrderTracking";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
-import { currencyLocale, currencyPrefix } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 import { ORDER_NOW_NOTE } from "@/components/checkout/checkoutUtils";
 
 interface OrderDetailProps {
@@ -14,11 +14,19 @@ interface OrderDetailProps {
     storeId: string;
 }
 
+// What a shipment without a tracking number yet is doing, from its status (the order list shows the same status).
+function shipmentStatusText(status?: string): string {
+    const value = (status || "").toLowerCase();
+    if (value === "delivered") return "Delivered";
+    if (value === "shipped" || value === "out_for_delivery" || value === "in_transit") return "Shipped";
+    if (value === "pending" || value === "processing" || value === "confirmed") return "Preparing your order";
+    return "Not yet dispatched";
+}
+
 export default function OrderDetail({ order, storeId }: OrderDetailProps) {
     const { currency } = useStoreCurrency();
     // The order's own currency (saved since checkout became server-priced), else the store's.
-    const prefix = currencyPrefix(order.currency || currency);
-    const locale = currencyLocale(order.currency || currency);
+    const money = (amount: number) => formatPrice(amount, order.currency || currency, 2);
     // The items' tax by type; the tax on shipping is its own row below. An older API has one combined list and no shipping tax.
     const taxRows = (order.item_tax_lines ?? order.tax_lines ?? []).filter((line) => line.amount > 0);
     const [trackingInfo, setTrackingInfo] = useState<{ number: string; isOrderNumber: boolean; carrier?: string; orderStatus?: string } | null>(null);
@@ -59,8 +67,8 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                     {shipment.awbNumber && (
                                         <div className="flex items-center gap-4">
                                             <div className="h-px flex-grow bg-gray-100" />
-                                            <span className="text-[10px] font-mono font-medium text-gray-400 bg-white px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
-                                                AWB #{shipment.awbNumber}
+                                            <span className="text-xs font-mono font-medium text-gray-500 bg-white px-4 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                                                Tracking #{shipment.awbNumber}
                                             </span>
                                             <div className="h-px flex-grow bg-gray-100" />
                                         </div>
@@ -85,7 +93,7 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                                         <p className="text-xs text-gray-500 font-medium mt-2">Quantity: {item.quantity}</p>
                                                     </div>
                                                 </div>
-                                                <span className="text-sm font-semibold text-gray-900">{prefix}{item.price.toLocaleString(locale)}</span>
+                                                <span className="text-sm font-semibold text-gray-900">{money(item.price)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -93,42 +101,42 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                             ))}
 
                             <div className="pt-10 border-t border-gray-100 space-y-5">
-                                <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                <div className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                     <span>Subtotal</span>
-                                    <span>{prefix}{(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0)).toLocaleString(locale)}</span>
+                                    <span>{money(order.subtotal ?? order.total - (order.tax || 0) - (order.shipping || 0))}</span>
                                 </div>
                                 {order.tax > 0 && taxRows.length > 0
                                     ? taxRows.map((line) => (
-                                        <div key={line.type} className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                        <div key={line.type} className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                             <span>{taxLineLabel(line)}</span>
-                                            <span>{prefix}{line.amount.toLocaleString(locale)}</span>
+                                            <span>{money(line.amount)}</span>
                                         </div>
                                     ))
                                     : order.tax > 0 && (
-                                        <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                        <div className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                             <span>Tax</span>
-                                            <span>{prefix}{order.tax.toLocaleString(locale)}</span>
+                                            <span>{money(order.tax)}</span>
                                         </div>
                                     )}
                                 {(order.shipping_tax ?? 0) > 0 && (
-                                    <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                    <div className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                         <span>{shippingTaxLabel(taxRows)}</span>
-                                        <span>{prefix}{(order.shipping_tax ?? 0).toLocaleString(locale)}</span>
+                                        <span>{money(order.shipping_tax ?? 0)}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                <div className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                     <span>Shipping</span>
-                                    {order.shipping > 0 ? <span>{prefix}{order.shipping.toLocaleString(locale)}</span> : <span className="text-green-600 font-semibold">Free</span>}
+                                    {order.shipping > 0 ? <span>{money(order.shipping)}</span> : <span className="text-green-600 font-semibold">Free</span>}
                                 </div>
                                 {order.discount > 0 && (
-                                    <div className="flex justify-between text-xs font-medium tracking-tight text-gray-500">
+                                    <div className="flex justify-between text-sm font-medium tracking-tight text-gray-600">
                                         <span>Discount</span>
-                                        <span className="text-red-500">-{prefix}{order.discount.toLocaleString(locale)}</span>
+                                        <span className="text-red-500">-{money(order.discount)}</span>
                                     </div>
                                 )}
                                 <div className="pt-8 mt-2 border-t border-gray-100 flex justify-between items-center text-gray-900">
                                     <span className="text-base font-medium tracking-tight">Total Amount</span>
-                                    <span className="text-3xl font-bold tracking-tight">{prefix}{order.total.toLocaleString(locale)}</span>
+                                    <span className="text-2xl font-bold tracking-tight">{money(order.total)}</span>
                                 </div>
                             </div>
                         </div>
@@ -148,8 +156,8 @@ export default function OrderDetail({ order, storeId }: OrderDetailProps) {
                                             <span className="material-symbols-outlined text-gray-900">local_shipping</span>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-mono font-medium text-gray-600 block">{shipment.awbNumber ? `AWB #${shipment.awbNumber}` : "Not yet dispatched"}</p>
-                                            <p className="text-[10px] font-medium text-gray-400 mt-1 uppercase tracking-wider">
+                                            <p className="text-sm font-mono font-medium text-gray-700 block">{shipment.awbNumber ? `Tracking #${shipment.awbNumber}` : shipmentStatusText(shipment.status)}</p>
+                                            <p className="text-xs font-medium text-gray-500 mt-1 uppercase tracking-wider">
                                                 {shipment.items?.length || order.items.length} {(shipment.items?.length || order.items.length) === 1 ? "Item" : "Items"}
                                             </p>
                                         </div>

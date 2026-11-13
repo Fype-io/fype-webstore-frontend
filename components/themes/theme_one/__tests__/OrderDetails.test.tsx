@@ -19,7 +19,7 @@ describe("OrderDetails: tax rows", () => {
     it("shows the items' tax at its own rate and the tax on shipping as its own row", () => {
         render(<OrderDetail storeId="S-1" order={order({ tax_lines: [{ type: "VAT", rate: 6, amount: 12.75 }], item_tax_lines: [{ type: "VAT", rate: 6, amount: 12 }], shipping_tax: 0.75 })} />);
         expect(screen.getByText("VAT (6%)")).toBeInTheDocument();
-        expect(screen.getByText(/12$/)).toBeInTheDocument();
+        expect(screen.getByText(/12\.00$/)).toBeInTheDocument();
         expect(screen.getByText("VAT on shipping")).toBeInTheDocument();
         expect(screen.getByText(/0\.75$/)).toBeInTheDocument();
     });

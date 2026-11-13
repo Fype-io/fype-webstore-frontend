@@ -1,6 +1,7 @@
 "use client";
 
 import type { SparkColumnBlock, SparkMulticolumnSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface MulticolumnProps {
     settings: SparkMulticolumnSettings;
@@ -55,16 +56,16 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                                         <a href={block.settings.link} className="hover:underline transition-all group/link">
                                             <h3
                                                 className="text-xl font-bold mb-3 text-gray-900 group-hover/link:text-blue-600 transition-colors"
-                                                dangerouslySetInnerHTML={{ __html: block.settings.heading }}
+                                                dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.heading) }}
                                             />
                                         </a>
                                     ) : (
-                                        <h3 className="text-xl font-bold mb-3 text-gray-900" dangerouslySetInnerHTML={{ __html: block.settings.heading }} />
+                                        <h3 className="text-xl font-bold mb-3 text-gray-900" dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.heading) }} />
                                     ))}
                                 {block.settings.text && (
                                     <div
                                         className="text-gray-500 leading-relaxed text-base [&>p]:mb-2 last:[&>p]:mb-0 [&_strong]:font-semibold [&_em]:italic"
-                                        dangerouslySetInnerHTML={{ __html: block.settings.text }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.text) }}
                                     />
                                 )}
                             </>

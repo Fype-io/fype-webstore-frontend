@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SparkContactFormSettings } from "../sparkConfig";
 import { getCurrentStoreId } from "@/lib/client-store-context";
 import { getApiErrorMessage, postApi } from "@/lib/client-api";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface ContactFormProps {
     settings: SparkContactFormSettings;
@@ -101,13 +102,13 @@ export default function ContactForm({ settings }: ContactFormProps) {
         >
             <div className="max-w-xl mx-auto px-6">
                 <div className="text-center mb-10 md:mb-16">
-                    {settings.heading && <h2 className="text-2xl md:text-3xl font-semibold tracking-tight mb-4" dangerouslySetInnerHTML={{ __html: settings.heading }} />}
-                    {settings.subtext && <div className="text-gray-600 text-lg" dangerouslySetInnerHTML={{ __html: settings.subtext }} />}
+                    {settings.heading && <h2 className="text-2xl md:text-3xl font-semibold tracking-tight mb-4" dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.heading) }} />}
+                    {settings.subtext && <div className="text-gray-600 text-lg" dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.subtext) }} />}
                 </div>
 
                 {submitted ? (
                     <div className="bg-emerald-50 text-emerald-800 p-6 rounded-xl text-center border border-emerald-100">
-                        <div className="font-medium text-lg" dangerouslySetInnerHTML={{ __html: settings.success_message }} />
+                        <div className="font-medium text-lg" dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.success_message) }} />
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-gray-100">

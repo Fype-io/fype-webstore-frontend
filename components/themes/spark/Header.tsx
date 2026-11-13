@@ -10,6 +10,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { cartTotalCount, useSparkCart } from "./SparkCartContext";
 import AuthModal from "@/components/shared/AuthModal";
 import { getCurrentStoreId } from "@/lib/client-store-context";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface SparkHeaderProps {
     header: SparkHeaderSettings;
@@ -193,12 +194,14 @@ export default function Header({
 
     // Over a dark banner the main (often dark) logo can vanish: the merchant can set a
     // second logo that only shows while the header is transparent.
-    const shownLogoUrl = isTransparent && header.glass_logo_url ? header.glass_logo_url : logoUrl;
+    const showGlassLogo = isTransparent && !!header.glass_logo_url;
+    const shownLogoUrl = showGlassLogo ? header.glass_logo_url : logoUrl;
+    const shownLogoWidth = showGlassLogo && header.glass_logo_width ? header.glass_logo_width : logoWidth;
 
     const logoContent = (
         <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0">
             {(logoType === "Logo Image" || logoType === "Text + Logo Image") && shownLogoUrl && (
-                <span className="flex items-center shrink-0 overflow-hidden max-w-[36vw] sm:max-w-none" style={{ width: `${logoWidth}px` }}>
+                <span className="flex items-center shrink-0 overflow-hidden max-w-[36vw] sm:max-w-none" style={{ width: `${shownLogoWidth}px` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element -- store-uploaded logo, arbitrary remote origin not worth a next/image remotePatterns entry */}
                     <img src={shownLogoUrl} className="w-full h-auto max-h-10 sm:max-h-12 object-contain" alt={logoText || "Logo"} />
                 </span>
@@ -268,7 +271,7 @@ export default function Header({
         const link = block.settings.link ? resolveAnnouncementLink(block.settings.link) : null;
         const content = (
             <div
-                dangerouslySetInnerHTML={{ __html: block.settings.text || "Welcome to our store" }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.text) || "Welcome to our store" }}
                 className="[&_p]:inline [&_p]:m-0"
             />
         );

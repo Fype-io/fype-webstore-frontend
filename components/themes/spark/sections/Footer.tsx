@@ -1,6 +1,7 @@
 "use client";
 
 import type { SparkFooterBlock, SparkFooterSettings, SparkThemeSettingsSocialMedia } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface FooterProps {
     settings: SparkFooterSettings;
@@ -145,7 +146,7 @@ export default function Footer({
                                             {!footerLogoUrl && (
                                                 <div className="text-2xl font-black tracking-tighter mb-6">{brandName}.</div>
                                             )}
-                                            <div className="max-w-sm mb-8 text-base leading-relaxed opacity-80" dangerouslySetInnerHTML={{ __html: block.settings.text }} />
+                                            <div className="max-w-sm mb-8 text-base leading-relaxed opacity-80" dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.text) }} />
                                             {socialLinks.length > 0 && (
                                                 <div className="flex flex-wrap gap-4">
                                                     {socialLinks.map((l, i) => (

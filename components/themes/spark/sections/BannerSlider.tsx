@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import type { SparkBannerSlideBlock, SparkImageBannerSettings } from "../sparkConfig";
+import { sanitizeRichText } from "@/lib/sanitizeRichText";
 
 interface BannerSliderProps {
     settings: SparkImageBannerSettings;
@@ -95,14 +96,21 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
         return () => window.clearTimeout(timer);
     }, [isSlideSelectedInEditor, slides, currentIndex]);
 
-    const adaptToImage = settings.banner_height === "Adapt to image";
+    // "Match image" (stored as "Adapt to image" so saved themes keep working): the whole
+    // image at full width, so the banner is as tall as the image.
+    const matchImage = settings.banner_height === "Adapt to image";
     let heightClass = "min-h-[750px] lg:min-h-[850px]";
-    if (settings.banner_height === "Small") heightClass = "min-h-[400px] lg:min-h-[500px]";
-    if (settings.banner_height === "Medium") heightClass = "min-h-[550px] lg:min-h-[650px]";
-
-    // Adapt to image: no fixed minimum; the banner is as tall as the image or
-    // the text, whichever is taller (see adaptInFlow below).
-    if (adaptToImage) heightClass = "";
+    // Original Size: the banner is as tall as the image, but never taller than the chosen banner height.
+    let originalMaxHeightClass = "max-h-[750px] lg:max-h-[850px]";
+    if (settings.banner_height === "Small") {
+        heightClass = "min-h-[400px] lg:min-h-[500px]";
+        originalMaxHeightClass = "max-h-[400px] lg:max-h-[500px]";
+    }
+    if (settings.banner_height === "Medium") {
+        heightClass = "min-h-[550px] lg:min-h-[650px]";
+        originalMaxHeightClass = "max-h-[550px] lg:max-h-[650px]";
+    }
+    if (matchImage) heightClass = "";
 
     if (slides.length === 0) {
         return (
@@ -124,10 +132,24 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
     const s = slide.settings;
     const buttonLink = s.button_link ? resolveBannerLink(s.button_link) : { href: "#", external: false };
 
-    // Image and text share one grid cell, so a short phone image can't shrink
-    // the banner below its own text. Without an image there's nothing to adapt
-    // to, so it keeps a Medium-sized box.
-    const adaptInFlow = adaptToImage && !!s.image_url;
+    // Match image and Original Size both let the image set the banner height. Image and
+    // text share one grid cell, so a short image can't shrink the banner below its own
+    // text. Without an image there's nothing to follow, so the banner keeps a Medium-sized box.
+    const originalSize = !matchImage && s.image_fit === "Original Size";
+    const inFlow = (matchImage || originalSize) && !!s.image_url;
+
+    // Match image: reserve the height before the image loads, from the sizes the editor
+    // saved with the image. Only when every image in play has a known size, otherwise the
+    // banner takes its height from the loaded image.
+    const hasDesktopSize = !!(s.image_width && s.image_height);
+    const hasMobileSize = !s.mobile_image_url || !!(s.mobile_image_width && s.mobile_image_height);
+    const reserveRatio = matchImage && inFlow && hasDesktopSize && hasMobileSize;
+    const ratioStyle: CSSProperties | undefined = reserveRatio
+        ? ({
+              ["--spark-ar-d" as string]: `${s.image_width} / ${s.image_height}`,
+              ...(s.mobile_image_url ? { ["--spark-ar-m" as string]: `${s.mobile_image_width} / ${s.mobile_image_height}` } : {}),
+          } as CSSProperties)
+        : undefined;
 
     const headingHtml = s.heading_text || "";
     const bodyHtml = s.text || "";
@@ -168,28 +190,39 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                 onSlideClick?.(slide.id);
             }}
         >
-            <div className={`relative w-full overflow-hidden ${adaptInFlow ? "grid" : "flex flex-col"} ${adaptToImage && !s.image_url ? "min-h-[550px] lg:min-h-[650px]" : heightClass} ${isEditorPreview ? "group/block" : ""}`}>
-            <AnimatePresence mode={adaptToImage ? "popLayout" : "sync"}>
+            <div className={`relative w-full overflow-hidden ${inFlow ? "grid" : "flex flex-col"} ${(matchImage || originalSize) && !s.image_url ? "min-h-[550px] lg:min-h-[650px]" : inFlow ? "" : heightClass} ${isEditorPreview ? "group/block" : ""}`}>
+            <AnimatePresence mode={inFlow ? "popLayout" : "sync"}>
                 <motion.div
                     key={slide.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.8 }}
-                    className={`${adaptInFlow ? "relative col-start-1 row-start-1" : "absolute inset-0 h-full"} w-full ${isEditorPreview ? "cursor-pointer" : ""}`}
+                    className={`${
+                        inFlow
+                            ? `relative col-start-1 row-start-1 ${originalSize ? `${originalMaxHeightClass} self-center overflow-hidden flex items-center justify-center` : reserveRatio ? "spark-match-ar" : ""}`
+                            : "absolute inset-0 h-full"
+                    } w-full ${isEditorPreview ? "cursor-pointer" : ""}`}
+                    style={ratioStyle}
                 >
                     {s.image_url ? (
                         // <picture> so each device downloads only its own image.
                         // Keyed so a changed image or a breakpoint crossing
                         // remounts it (see useMobileMediaFlips).
-                        <picture className={adaptInFlow ? "block h-full" : undefined} key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
+                        <picture className={inFlow ? (originalSize ? "contents" : "block h-full") : undefined} key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
                             {s.mobile_image_url && <source media={MOBILE_IMAGE_MEDIA} srcSet={toSrcSetUrl(s.mobile_image_url)} />}
                             <img
                                 src={s.image_url}
                                 alt=""
                                 draggable={false}
-                                className={adaptInFlow ? "block w-full h-full select-none object-cover" : `absolute inset-0 w-full h-full select-none ${objectFitClass}`}
-                                style={adaptInFlow ? undefined : { objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
+                                className={
+                                    inFlow
+                                        ? originalSize
+                                            ? "block max-w-none w-auto h-auto shrink-0 select-none"
+                                            : "block w-full h-full select-none object-cover"
+                                        : `absolute inset-0 w-full h-full select-none ${objectFitClass}`
+                                }
+                                style={inFlow ? undefined : { objectPosition: `${s.object_position_x}% ${s.object_position_y}%` }}
                             />
                         </picture>
                     ) : (
@@ -211,11 +244,11 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
             </AnimatePresence>
 
             <div
-                className={`${adaptInFlow ? "relative col-start-1 row-start-1" : "relative flex-1"} z-10 flex flex-col w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
+                className={`${inFlow ? "relative col-start-1 row-start-1" : "relative flex-1"} z-10 flex flex-col w-full ${horizAlign} ${vertAlign} px-8 md:px-16 lg:px-24 w-full gap-6 pointer-events-none`}
                 style={{
-                    // Adapt: always clear the header, and leave room for the dots, because the text can set the height.
-                    paddingTop: adaptInFlow || s.content_vertical_alignment === "Top" ? topPadding : 0,
-                    paddingBottom: adaptInFlow ? (s.content_vertical_alignment === "Bottom" ? "5rem" : "3rem") : 0,
+                    // In-flow banners: always clear the header, and leave room for the dots, because the text can set the height.
+                    paddingTop: inFlow || s.content_vertical_alignment === "Top" ? topPadding : 0,
+                    paddingBottom: inFlow ? (s.content_vertical_alignment === "Bottom" ? "5rem" : "3rem") : 0,
                 }}
             >
                 {headingHtml && (
@@ -226,7 +259,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                         transition={{ delay: 0.3, duration: 0.5 }}
                         className={`font-medium tracking-tight text-white leading-tight ${headingSizeClass} max-w-5xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline [&_a]:underline-offset-4`}
                         style={{ color: s.heading_color }}
-                        dangerouslySetInnerHTML={{ __html: headingHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingHtml) }}
                     />
                 )}
                 {bodyHtml && (
@@ -237,7 +270,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
                         transition={{ delay: 0.2, duration: 0.5 }}
                         className={`text-white/80 ${s.text_style === "Subtitle" ? "tracking-[0.2em] text-xs sm:text-sm font-semibold spark-font-subheading" : "text-base sm:text-lg"} max-w-2xl [&_p]:m-0 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_a]:underline-offset-4`}
                         style={{ color: s.text_color }}
-                        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichText(bodyHtml) }}
                     />
                 )}
                 {s.button_label && (

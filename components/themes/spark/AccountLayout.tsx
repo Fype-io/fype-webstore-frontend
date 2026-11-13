@@ -47,7 +47,7 @@ export default function AccountLayout({ title: _title, storeId, children }: Acco
                 <button
                     type="button"
                     onClick={handleSignOut}
-                    className="text-gray-400 hover:text-black transition-colors font-bold text-[10px] md:text-xs uppercase tracking-wider flex items-center gap-1.5 group shrink-0 spark-font-body"
+                    className="text-gray-600 hover:text-black transition-colors font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 group shrink-0 spark-font-body"
                 >
                     <span className="hidden sm:block">Sign out</span>
                     <span className="sm:hidden">Log out</span>

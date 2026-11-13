@@ -62,7 +62,7 @@ function placeholderProduct(): FeaturedProductDetail {
 // Featured Collection's Quick Add. Share stays decorative, matching the
 // reference exactly (its own Share button has no onClick either).
 export default function FeaturedProduct({ settings, storeId, globalTax, initialProduct = null, isEditorPreview = false }: FeaturedProductProps) {
-    const { prefix } = useStoreCurrency();
+    const { format } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -241,7 +241,7 @@ export default function FeaturedProduct({ settings, storeId, globalTax, initialP
                 <div className="flex items-center gap-4 mt-1 mb-8">
                     {displayProduct.hasVariants && <span className="text-sm text-gray-400">From</span>}
                     <p className="text-xl md:text-2xl font-light text-gray-500">
-                        {compareAtPrice > 0 && <span className="line-through text-gray-400 mr-2">{prefix}{compareDisplayPrice}</span>}{prefix}{displayPrice}
+                        {compareAtPrice > 0 && <span className="line-through opacity-50 mr-2">{format(compareDisplayPrice, 2)}</span>}{format(displayPrice, 2)}
                     </p>
                     <span
                         className={`px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-sm ${inStock ? "bg-black text-white" : "bg-gray-200 text-gray-500"}`}

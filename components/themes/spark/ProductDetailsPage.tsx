@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, Heart, Minus, Plus, RefreshCw, Shield, Truck } from "lucide-react";
 import type { ProductDetailsPageProps } from "@/components/themes/registry";
 import Footer from "./sections/Footer";
+import ProductCard from "./ProductCard";
 import ProductGallery from "./ProductGallery";
 import { buildSparkNavItems, mergeSparkConfig, sparkDefaultConfig, type SparkConfigOverride } from "./sparkConfig";
 import { SPARK_BLOCK_CLICKED, SPARK_DRAFT_READY, SPARK_DRAFT_UPDATE, SPARK_SECTION_CLICKED, SPARK_SET_ACTIVE_BLOCK, SPARK_SET_ACTIVE_SECTION, type SparkActiveBlock } from "./SparkHome";
@@ -57,7 +58,7 @@ function ProductHighlights({ highlights, compact }: { highlights: SparkProductHi
 // selection, cart dispatch), so the live-editing postMessage listener is
 // embedded directly instead of adding a redundant wrapper layer.
 export default function ProductDetailsPage({ shop, navPages, allPages, product, variants, variantOptions, relatedProducts, initialVariantId, themeConfig }: ProductDetailsPageProps) {
-    const { prefix } = useStoreCurrency();
+    const { format } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { isAuthenticated, wishlist } = useAppSelector((state) => state.user);
     const { openCart } = useSparkCart();
@@ -365,10 +366,10 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
                 <div className="w-full md:w-1/2 min-w-0 flex flex-col pt-0 md:pt-4">
                     <div className="mb-8">
                         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 mb-4 break-words">{product.name}</h1>
-                        <p className="text-2xl text-gray-500 font-medium break-words">
-                            {prefix}{displayPrice}
+                        <p className="text-2xl text-gray-900 font-semibold break-words">
+                            {format(displayPrice, 2)}
                             {displayData.compareAtPrice > displayData.price && (
-                                <span className="text-lg text-gray-400 line-through ml-2">{prefix}{compareDisplayPrice}</span>
+                                <span className="text-lg text-gray-400 line-through font-normal ml-2">{format(compareDisplayPrice, 2)}</span>
                             )}
                         </p>
 
@@ -501,22 +502,18 @@ export default function ProductDetailsPage({ shop, navPages, allPages, product, 
             </div>
 
             {relatedProducts.length > 0 && (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
-                    <h2 className="text-xl font-bold mb-6">You might also like</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-12 pb-16">
+                    <h2 className="text-2xl font-semibold tracking-tight mb-8">You might also like</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-8 sm:gap-x-6">
                         {relatedProducts.slice(0, 4).map((related) => (
-                            <Link href={productHref(related)} key={related.productId} className="group block">
-                                <div className="aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden mb-3">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={related.images?.[0] || related.image || "/placeholder-product.png"}
-                                        alt={related.name}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    />
-                                </div>
-                                <p className="text-sm font-medium text-gray-900 truncate">{related.name}</p>
-                                <p className="text-sm text-gray-500 mt-1">{prefix}{related.price}</p>
-                            </Link>
+                            <ProductCard
+                                key={related.productId}
+                                product={related}
+                                globalTax={globalTax}
+                                shopName={shop.shopName}
+                                storeId={shop.shopId}
+                                disableQuickAdd={isEditorPreview}
+                            />
                         ))}
                     </div>
                 </div>

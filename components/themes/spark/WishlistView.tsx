@@ -16,7 +16,7 @@ interface WishlistViewProps {
 }
 
 export default function WishlistView({ storeId }: WishlistViewProps) {
-    const { prefix, locale } = useStoreCurrency();
+    const { format } = useStoreCurrency();
     const dispatch = useAppDispatch();
     const { openCart } = useSparkCart();
     const { wishlist, wishlistLoading, isAuthenticated } = useAppSelector((state) => state.user);
@@ -124,7 +124,7 @@ export default function WishlistView({ storeId }: WishlistViewProps) {
                                 <div className="p-4 flex-1 flex flex-col justify-between">
                                     <Link href={productHref(item)} className="mb-3">
                                         <h3 className="font-semibold text-sm text-gray-900 line-clamp-1 group-hover:text-gray-600 transition-colors">{item.name}</h3>
-                                        <p className="text-sm text-gray-500 font-medium mt-1">{prefix}{Number(item.price).toLocaleString(locale)}</p>
+                                        <p className="text-sm text-gray-900 font-medium mt-1">{format(item.price, 2)}</p>
                                     </Link>
                                     {item.hasVariants ? (
                                         <Link

@@ -15,6 +15,17 @@ interface AddressListProps {
     defaultCountry?: string | undefined;
 }
 
+// "IN" -> "India"; anything that isn't a two-letter code is shown as saved.
+export function countryName(country?: string): string {
+    const code = (country || "").trim();
+    if (!/^[A-Za-z]{2}$/.test(code)) return code;
+    try {
+        return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) || code;
+    } catch {
+        return code;
+    }
+}
+
 export default function AddressList({ storeId, selectionMode = false, selectedAddressId, onAddressSelect, defaultCountry }: AddressListProps) {
     const dispatch = useAppDispatch();
     const { addresses, addressesLoading } = useAppSelector((state) => state.user);
@@ -104,7 +115,7 @@ export default function AddressList({ storeId, selectionMode = false, selectedAd
                                         <br />
                                         {address.city}, {address.state} {address.postalCode}
                                         <br />
-                                        {address.country}
+                                        {countryName(address.country)}
                                     </p>
                                     <p className="text-sm font-medium text-gray-900">{address.phoneNumber}</p>
                                 </div>

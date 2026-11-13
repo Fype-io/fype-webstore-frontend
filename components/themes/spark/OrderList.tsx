@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchOrders } from "@/redux/slices/userSlice";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
-import { currencyLocale, currencyPrefix } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 import { orderHref } from "@/lib/order-url";
 import { orderStatusLabel, orderStatusTone, type OrderStatusTone } from "@/lib/order-status";
 
@@ -78,7 +78,7 @@ export default function OrderList({ storeId }: OrderListProps) {
                                     </div>
                                     <div>
                                         <div className="text-gray-400 text-[10px] md:text-xs font-bold tracking-wider uppercase mb-1">Total</div>
-                                        <div className="font-medium text-xs md:text-sm">{currencyPrefix(order.currency || currency)}{Number(order.total).toLocaleString(currencyLocale(order.currency || currency))}</div>
+                                        <div className="font-medium text-xs md:text-sm">{formatPrice(order.total, order.currency || currency, 2)}</div>
                                     </div>
                                     <div>
                                         <div className="text-gray-400 text-[10px] md:text-xs font-bold tracking-wider uppercase mb-1">Order #</div>

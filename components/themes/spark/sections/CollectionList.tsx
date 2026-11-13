@@ -149,7 +149,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
                 <div className="mt-12 flex justify-center">
                     <a
                         href={viewAllHref}
-                        className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-gray-900 font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                        className="spark-view-all inline-flex items-center gap-2 px-8 py-3.5 rounded-full uppercase tracking-widest text-xs font-medium"
                     >
                         {viewAllLabel}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

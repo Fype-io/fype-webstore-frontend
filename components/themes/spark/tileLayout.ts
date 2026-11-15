@@ -101,6 +101,12 @@ export const collectionsPageColumns = (perRow: unknown): TileColumns => {
     }
 };
 export const multicolumnColumns = (columns: unknown): TileColumns => ({ base: 1, md: clampTileCount(columns, 2, 4, 3) });
+// The Collection page keeps the columns its grid always had (2 / 3 / 4 from tablet width: it goes straight to 4, unlike Shop).
+export const collectionPageColumns = (perRow: unknown): TileColumns => {
+    const n = clampTileCount(perRow, 2, 4, 4);
+    return n === 2 ? { base: 2 } : { base: 2, md: n };
+};
+// Shop: 2 / 3 (from md) / 4 (3 from md, 4 from lg).
 export const productGridColumns = (perRow: unknown): TileColumns => {
     const n = clampTileCount(perRow, 2, 4, 4);
     return n === 2 ? { base: 2 } : n === 3 ? { base: 2, md: 3 } : { base: 2, md: 3, lg: 4 };

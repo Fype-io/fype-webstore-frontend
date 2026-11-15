@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart, addToGuestCart, fetchCart, fetchGuestCart } from "@/redux/slices/userSlice";
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { SparkFeaturedCollectionSettings } from "../sparkConfig";
-import { featuredCollectionGrid } from "../tileLayout";
+import { CENTERED_TILE, centeredRow, featuredCollectionColumns } from "../tileLayout";
 import type { CollectionSummary, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
@@ -280,15 +280,16 @@ export default function FeaturedCollection({
                         </a>
                     )}
                 </div>
-                <div className={`grid ${featuredCollectionGrid(settings.products_per_row)} gap-x-6 gap-y-8 md:gap-y-12`}>
+                <div className={`${centeredRow(featuredCollectionColumns(settings.products_per_row), "1.5rem")} gap-y-8 md:gap-y-12`}>
                     {displayProducts.map((product) => (
-                        <FeaturedProductCard
-                            key={product.productId}
-                            product={product}
-                            storeId={storeId}
-                            globalTax={globalTax}
-                            disableQuickAdd={isPlaceholder || isEditorPreview}
-                        />
+                        <div key={product.productId} className={CENTERED_TILE}>
+                            <FeaturedProductCard
+                                product={product}
+                                storeId={storeId}
+                                globalTax={globalTax}
+                                disableQuickAdd={isPlaceholder || isEditorPreview}
+                            />
+                        </div>
                     ))}
                 </div>
                 {hasMore && (

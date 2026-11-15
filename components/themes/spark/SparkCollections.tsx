@@ -5,7 +5,7 @@ import Link from "next/link";
 import Header from "./Header";
 import Footer from "./sections/Footer";
 import { COLLECTIONS_PAGE_NAME_HOVER_DEFAULT, mergeSparkConfig, type SparkConfig, type SparkConfigOverride } from "./sparkConfig";
-import { collectionsPageGrid, safeHoverColor } from "./tileLayout";
+import { CENTERED_TILE, centeredRow, collectionsPageColumns, collectionsPageGrid, fitsInOnePartialRow, safeHoverColor } from "./tileLayout";
 import { getApi } from "@/lib/client-api";
 import { SPARK_BLOCK_CLICKED, SPARK_DRAFT_READY, SPARK_DRAFT_UPDATE, SPARK_SECTION_CLICKED, SPARK_SET_ACTIVE_BLOCK, SPARK_SET_ACTIVE_SECTION, type SparkActiveBlock } from "./SparkHome";
 import type { CollectionTile, ShopIdentity } from "@/types/storefront";
@@ -73,6 +73,7 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
 
     const settings = liveConfig.page_settings.collections;
     const gridClass = collectionsPageGrid(settings.collections_per_row);
+    const tileColumns = collectionsPageColumns(settings.collections_per_row);
     const hoverColor = safeHoverColor(settings.name_hover_color, COLLECTIONS_PAGE_NAME_HOVER_DEFAULT);
 
     // Infinite scroll. Group view: every tile is already here, reveal a chunk at a time. Whole
@@ -87,6 +88,8 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
 
     const shownTiles = groupView ? tiles.slice(0, visibleCount) : tiles;
     const moreToShow = groupView ? visibleCount < tiles.length : serverHasMore;
+    // Fewer tiles than one row (and no more to come): centre them. Otherwise keep the grid, so tiles don't jump as more load.
+    const centerTiles = fitsInOnePartialRow(shownTiles.length, tileColumns, moreToShow);
 
     const loadMore = useCallback(async () => {
         if (loadingRef.current) return;
@@ -192,12 +195,12 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
 
                 {shownTiles.length > 0 ? (
                     <>
-                    <div className={`grid gap-8 ${gridClass}`}>
+                    <div className={centerTiles ? `gap-y-8 ${centeredRow(tileColumns, "2rem")}` : `grid gap-8 ${gridClass}`}>
                         {shownTiles.map((collection) => (
                             <Link
                                 key={`${collection.kind}:${collection._id}`}
                                 href={collection.kind === "group" ? `/collections?group=${encodeURIComponent(collection.slug)}` : `/collections/${collection.slug}`}
-                                className="group cursor-pointer block"
+                                className={`group cursor-pointer block ${centerTiles ? CENTERED_TILE : ""}`}
                                 style={{ "--spark-name-hover": hoverColor } as React.CSSProperties}
                             >
                                 <div className="aspect-[4/3] bg-gray-50 rounded-2xl overflow-hidden mb-6 relative border border-gray-100 shadow-sm isolate">

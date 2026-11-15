@@ -12,7 +12,7 @@ import type { CollectionSummary, ShopIdentity, StorefrontProduct, TaxSettings } 
 import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
-import { CENTERED_TILE, centeredRow, productGridColumns } from "./tileLayout";
+import { CENTERED_TILE, centeredRow, collectionPageColumns } from "./tileLayout";
 
 const PLACEHOLDER_IMAGE = "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
 
@@ -219,7 +219,7 @@ export default function SparkCollectionPage({
                     </div>
 
                     {displayProducts.length > 0 ? (
-                        <div className={`gap-y-12 ${centeredRow(productGridColumns(settings.products_per_row), "1.5rem")}`}>
+                        <div className={`gap-y-12 ${centeredRow(collectionPageColumns(settings.products_per_row), "1.5rem")}`}>
                             {displayProducts.map((product) => (
                                 <div key={product.productId} className={CENTERED_TILE}>
                                     <ProductCard

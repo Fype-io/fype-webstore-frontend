@@ -51,7 +51,14 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                                         <img
                                             src={block.settings.image_url}
                                             alt=""
-                                            className={block.settings.image_url.includes("image/svg+xml") ? "w-6 h-6 object-contain" : "w-full h-full object-cover"}
+                                            className={
+                                                block.settings.image_url.includes("image/svg+xml")
+                                                    ? "w-6 h-6 object-contain"
+                                                    : // Zooming out shows the WHOLE image (contain) and shrinks it; at 100% and above the image fills the circle (cover) and zooms in.
+                                                      block.settings.image_zoom && block.settings.image_zoom < 100
+                                                      ? "w-full h-full object-contain"
+                                                      : "w-full h-full object-cover"
+                                            }
                                             style={block.settings.image_zoom && block.settings.image_zoom !== 100 ? { transform: `scale(${columnImageScale(block.settings.image_zoom)})` } : undefined}
                                         />
                                     </div>

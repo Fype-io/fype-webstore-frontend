@@ -4,6 +4,7 @@ import {
     centeredRow,
     clampTileCount,
     collectionListColumns,
+    collectionPageColumns,
     collectionListGrid,
     collectionsPageColumns,
     collectionsPageGrid,
@@ -72,6 +73,11 @@ describe("centred tile rows", () => {
         expect(multicolumnColumns(4)).toEqual({ base: 1, md: 4 });
         expect(multicolumnColumns(undefined)).toEqual({ base: 1, md: 3 });
         expect(productGridColumns(3)).toEqual({ base: 2, md: 3 });
+        // The Collection page keeps its own (older) grid: 4 per row from tablet width, 3 per row from md.
+        expect(collectionPageColumns(4)).toEqual({ base: 2, md: 4 });
+        expect(collectionPageColumns(3)).toEqual({ base: 2, md: 3 });
+        expect(collectionPageColumns(2)).toEqual({ base: 2 });
+        expect(collectionPageColumns(undefined)).toEqual({ base: 2, md: 4 });
         expect(productGridColumns(4)).toEqual({ base: 2, md: 3, lg: 4 });
     });
 

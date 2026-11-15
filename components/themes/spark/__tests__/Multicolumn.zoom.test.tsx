@@ -22,6 +22,14 @@ describe("Multicolumn image zoom", () => {
         expect(imageOf([column("a", { image_zoom: 150 })]).style.transform).toBe("scale(1.5)");
     });
 
+    it("zooming out shows the whole image (contain) so cropped edges come back; 100% and above fill the circle (cover)", () => {
+        expect(imageOf([column("a")]).className).toContain("object-cover");
+        expect(imageOf([column("a", { image_zoom: 100 })]).className).toContain("object-cover");
+        expect(imageOf([column("a", { image_zoom: 150 })]).className).toContain("object-cover");
+        expect(imageOf([column("a", { image_zoom: 99 })]).className).toContain("object-contain");
+        expect(imageOf([column("a", { image_zoom: 40 })]).className).toContain("object-contain");
+    });
+
     it("keeps a wild saved value inside 40-200%", () => {
         expect(imageOf([column("a", { image_zoom: 5 })]).style.transform).toBe("scale(0.4)");
         expect(imageOf([column("a", { image_zoom: 900 })]).style.transform).toBe("scale(2)");

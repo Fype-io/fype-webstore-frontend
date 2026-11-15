@@ -14,6 +14,8 @@ import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
 
+import { CENTERED_TILE, centeredRow, fitsInOnePartialRow, productGridColumns } from "./tileLayout";
+
 const PRODUCTS_PER_ROW_CLASSES: Record<"2" | "3" | "4", string> = {
     "2": "grid-cols-2",
     "3": "grid-cols-2 md:grid-cols-3",
@@ -97,6 +99,9 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
     const globalTax = shop.settings?.tax;
     const page = searchParams.page ? Number(searchParams.page) : 1;
     const gridClass = PRODUCTS_PER_ROW_CLASSES[settings.products_per_row];
+    // A handful of results on one page (fewer than a row): centre them; otherwise the usual grid, so rows line up across pages.
+    const productColumns = productGridColumns(settings.products_per_row);
+    const centerProducts = fitsInOnePartialRow(products.length, productColumns, (pagination?.totalPages ?? 1) > 1);
 
     const buildPageHref = (targetPage: number) => {
         const qs = new URLSearchParams();
@@ -184,10 +189,11 @@ export default function SparkShop({ initialConfig, shop, navItems, products, pag
 
                 {products.length > 0 ? (
                     <>
-                        <div className={`grid ${gridClass} gap-x-6 gap-y-12`}>
+                        <div className={centerProducts ? `gap-y-12 ${centeredRow(productColumns, "1.5rem")}` : `grid ${gridClass} gap-x-6 gap-y-12`}>
                             {products.map((product, i) => (
                                 <motion.div
                                     key={product.productId}
+                                    className={centerProducts ? CENTERED_TILE : undefined}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05, duration: 0.5 }}

@@ -196,6 +196,8 @@ export interface SparkFeaturedProductSettings {
 // rich-text editor widget has somewhere to write it.
 export interface SparkColumnBlockSettings {
     image_url: string;
+    // Size of the image inside its round frame, in % (40-200): unset or 100 = fills it.
+    image_zoom?: number;
     heading: string;
     text: string;
     link: string;

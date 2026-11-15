@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getApi } from "@/lib/client-api";
 import { COLLECTION_LIST_DEFAULTS, type SparkCollectionListSettings } from "../sparkConfig";
-import { clampTileCount, collectionListGrid, safeHoverColor } from "../tileLayout";
+import { CENTERED_TILE, centeredRow, clampTileCount, collectionListColumns, safeHoverColor } from "../tileLayout";
 import type { CollectionSummary } from "@/types/storefront";
 
 interface CollectionListProps {
@@ -123,13 +123,13 @@ export default function CollectionList({ settings, storeId, initialCollections =
                     </a>
                 )}
             </div>
-            <div className={`grid gap-x-6 gap-y-12 ${collectionListGrid(settings.columns_on_desktop)}`}>
+            <div className={`gap-y-12 ${centeredRow(collectionListColumns(settings.columns_on_desktop), "1.5rem")}`}>
                 {displayCollections.map((collection) => (
                     <Link
                         key={collection._id}
                         href={isPlaceholder ? "#" : `/collections/${collection.slug}`}
                         onClick={isPlaceholder ? (e) => e.preventDefault() : undefined}
-                        className="group block cursor-pointer"
+                        className={`group block cursor-pointer ${CENTERED_TILE}`}
                         style={{ "--spark-name-hover": hoverColor } as React.CSSProperties}
                     >
                         <div className={`aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden relative isolate ${showName ? "mb-5" : ""}`}>

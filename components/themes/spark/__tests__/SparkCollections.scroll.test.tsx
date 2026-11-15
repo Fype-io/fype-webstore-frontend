@@ -114,7 +114,7 @@ describe("Collections page infinite scroll", () => {
         };
         const { container } = renderPage({ initialConfig: config, collections: many(1, 3) });
 
-        expect(container.querySelector(".lg\\:grid-cols-6")).not.toBeNull();
+        expect(container.querySelector('[class*="lg:[--cols:6]"]')).not.toBeNull(); // 3 tiles, none to come: one centred row
         const link = screen.getByRole("link", { name: /collection 1/ });
         expect(link.getAttribute("style")).toContain("--spark-name-hover: #ff0000");
         expect(link.querySelector("h2")!.className).toContain("text-center");

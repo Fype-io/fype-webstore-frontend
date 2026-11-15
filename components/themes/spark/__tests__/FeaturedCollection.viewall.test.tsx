@@ -75,10 +75,10 @@ describe("Featured Collection View all and products per row", () => {
 
     it("sets products per row, with 4 for sections saved before the setting existed", () => {
         const { container, unmount } = render(<FeaturedCollection settings={settings} storeId="s1" initialProducts={products(4)} initialCollection={collection} />);
-        expect(container.querySelector(".md\\:grid-cols-4")).not.toBeNull();
+        expect(container.querySelector('[class*="md:[--cols:4]"]')).not.toBeNull();
         unmount();
 
         const { container: wide } = render(<FeaturedCollection settings={{ ...settings, products_per_row: 6 }} storeId="s1" initialProducts={products(4)} initialCollection={collection} />);
-        expect(wide.querySelector(".lg\\:grid-cols-6")).not.toBeNull();
+        expect(wide.querySelector('[class*="lg:[--cols:6]"]')).not.toBeNull();
     });
 });

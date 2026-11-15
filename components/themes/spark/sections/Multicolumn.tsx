@@ -2,6 +2,11 @@
 
 import type { SparkColumnBlock, SparkMulticolumnSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { CENTERED_TILE, centeredRow, clampTileCount, multicolumnColumns } from "../tileLayout";
+
+// How large the image sits in its round frame, in %: 100 (or unset) fills it, lower shows more of the image
+// (an icon that is cut off at 100), higher zooms in. Anything else falls back to 100.
+const columnImageScale = (zoom: unknown): number => clampTileCount(zoom, 40, 200, 100) / 100;
 
 interface MulticolumnProps {
     settings: SparkMulticolumnSettings;
@@ -21,7 +26,6 @@ interface MulticolumnProps {
 // comment) — the reference's own Multicolumn.tsx never applies it either,
 // so it's read here for nothing, matching actual reference behavior.
 export default function Multicolumn({ settings, blocks, isEditorPreview = false, activeBlockId = null, onBlockClick }: MulticolumnProps) {
-    const colsClass = settings.columns_on_desktop === 4 ? "md:grid-cols-4" : settings.columns_on_desktop === 2 ? "md:grid-cols-2" : "md:grid-cols-3";
     const alignClass = settings.column_alignment === "Left" ? "text-left" : "text-center";
 
     return (
@@ -36,7 +40,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                     </div>
                 )}
 
-                <div className={`grid gap-8 md:gap-12 grid-cols-1 ${colsClass} ${alignClass}`}>
+                <div className={`gap-y-8 md:gap-y-12 ${centeredRow(multicolumnColumns(settings.columns_on_desktop), "2rem-3rem")} ${alignClass}`}>
                     {blocks.map((block) => {
                         const isActive = isEditorPreview && activeBlockId === block.id;
                         const content = (
@@ -48,6 +52,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                                             src={block.settings.image_url}
                                             alt=""
                                             className={block.settings.image_url.includes("image/svg+xml") ? "w-6 h-6 object-contain" : "w-full h-full object-cover"}
+                                            style={block.settings.image_zoom && block.settings.image_zoom !== 100 ? { transform: `scale(${columnImageScale(block.settings.image_zoom)})` } : undefined}
                                         />
                                     </div>
                                 )}
@@ -73,7 +78,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
 
                         if (!isEditorPreview) {
                             return (
-                                <div key={block.id}>
+                                <div key={block.id} className={CENTERED_TILE}>
                                     {content}
                                 </div>
                             );
@@ -83,7 +88,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                             <div
                                 id={`spark-block-${block.id}`}
                                 key={block.id}
-                                className={`relative group/block cursor-pointer rounded-md ${isActive ? "ring-2 ring-blue-500 z-10" : "hover:ring-2 hover:ring-blue-400 z-10"}`}
+                                className={`relative group/block cursor-pointer rounded-md ${CENTERED_TILE} ${isActive ? "ring-2 ring-blue-500 z-10" : "hover:ring-2 hover:ring-blue-400 z-10"}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();

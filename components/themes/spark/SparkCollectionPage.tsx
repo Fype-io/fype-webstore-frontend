@@ -12,14 +12,9 @@ import type { CollectionSummary, ShopIdentity, StorefrontProduct, TaxSettings } 
 import SparkHeaderShell from "./SparkHeaderShell";
 import { sparkLayoutStyle } from "./sparkLayout";
 import { isEditorMessage, isEditorPreview as isEditorPreviewFrame, postToEditor } from "@/lib/editor-preview";
+import { CENTERED_TILE, centeredRow, collectionPageColumns } from "./tileLayout";
 
 const PLACEHOLDER_IMAGE = "https://i0.wp.com/mikeyarce.com/wp-content/uploads/2021/09/woocommerce-placeholder.png?ssl=1";
-
-const PRODUCTS_PER_ROW_CLASSES: Record<"2" | "3" | "4", string> = {
-    "2": "grid-cols-2",
-    "3": "grid-cols-2 md:grid-cols-3",
-    "4": "grid-cols-2 md:grid-cols-4",
-};
 
 // Same isEditorPreview-gated stand-ins as FeaturedCollection.tsx's
 // placeholderProducts — a merchant customizing a collection with no
@@ -128,7 +123,6 @@ export default function SparkCollectionPage({
         },
     }));
 
-    const gridClass = PRODUCTS_PER_ROW_CLASSES[settings.products_per_row];
 
     // No per-instance real fallback exists for Section Title (unlike Shop's
     // page_title/Collections' page_title, this is a genuinely global
@@ -225,18 +219,19 @@ export default function SparkCollectionPage({
                     </div>
 
                     {displayProducts.length > 0 ? (
-                        <div className={`grid gap-x-6 gap-y-12 ${gridClass}`}>
+                        <div className={`gap-y-12 ${centeredRow(collectionPageColumns(settings.products_per_row), "1.5rem")}`}>
                             {displayProducts.map((product) => (
-                                <ProductCard
-                                    key={product.productId}
-                                    product={product}
-                                    globalTax={globalTax}
-                                    storeId={storeId}
-                                    showName={settings.show_product_name}
-                                    showPrice={settings.show_price}
-                                    showBadges={settings.show_badges}
-                                    disableQuickAdd={isEditorPreview}
-                                />
+                                <div key={product.productId} className={CENTERED_TILE}>
+                                    <ProductCard
+                                        product={product}
+                                        globalTax={globalTax}
+                                        storeId={storeId}
+                                        showName={settings.show_product_name}
+                                        showPrice={settings.show_price}
+                                        showBadges={settings.show_badges}
+                                        disableQuickAdd={isEditorPreview}
+                                    />
+                                </div>
                             ))}
                         </div>
                     ) : (

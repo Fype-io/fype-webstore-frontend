@@ -89,6 +89,6 @@ describe("Collection List tiles", () => {
     it("sets the tiles per row", () => {
         const { container } = render(<CollectionList settings={{ ...base, columns_on_desktop: 5 }} storeId="s1" initialCollections={make(6)} />);
 
-        expect(container.querySelector(".lg\\:grid-cols-5")).not.toBeNull();
+        expect(container.querySelector('[class*="lg:[--cols:5]"]')).not.toBeNull();
     });
 });

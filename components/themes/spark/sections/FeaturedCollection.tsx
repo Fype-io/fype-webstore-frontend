@@ -8,6 +8,7 @@ import { addToCart, addToGuestCart, fetchCart, fetchGuestCart } from "@/redux/sl
 import { calculateProductTax } from "@/utils/taxCalculator";
 import type { SparkFeaturedCollectionSettings } from "../sparkConfig";
 import { CENTERED_TILE, centeredRow, featuredCollectionColumns } from "../tileLayout";
+import { linkAttrs, resolveLink } from "../resolveLink";
 import type { CollectionSummary, StorefrontProduct, TaxSettings } from "@/types/storefront";
 import { useSparkCart } from "../SparkCartContext";
 import { useStoreCurrency } from "@/components/shared/StoreCurrency";
@@ -269,7 +270,7 @@ export default function FeaturedCollection({
                     <h2 className="font-semibold tracking-tight text-2xl md:text-3xl">{settings.section_heading}</h2>
                     {settings.goto_label && !hasMore && (
                         <a
-                            href={gotoLink}
+                            {...linkAttrs(resolveLink(gotoLink))}
                             className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors"
                         >
                             {settings.goto_label}
@@ -295,7 +296,7 @@ export default function FeaturedCollection({
                 {hasMore && (
                     <div className="mt-12 flex justify-center">
                         <a
-                            href={gotoLink}
+                            {...linkAttrs(resolveLink(gotoLink))}
                             className="spark-view-all inline-flex items-center gap-2 px-8 py-3.5 rounded-full uppercase tracking-widest text-xs font-medium"
                         >
                             {settings.goto_label || "View all"}

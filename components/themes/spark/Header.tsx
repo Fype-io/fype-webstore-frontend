@@ -11,6 +11,7 @@ import { cartTotalCount, useSparkCart } from "./SparkCartContext";
 import AuthModal from "@/components/shared/AuthModal";
 import { getCurrentStoreId } from "@/lib/client-store-context";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { resolveLink } from "./resolveLink";
 
 interface SparkHeaderProps {
     header: SparkHeaderSettings;
@@ -47,15 +48,6 @@ function hexToRgba(hex: string, alpha: number): string {
     if (!match) return hex;
     const [, r, g, b] = match;
     return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`;
-}
-
-function resolveAnnouncementLink(value: string): { href: string; external: boolean } {
-    const href = value.trim();
-    if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
-    const external = /^(https?:\/\/|\/\/|www\.)/i.test(href) || /^[\w-]+(?:\.[\w-]+)+(?:\/|$)/i.test(href);
-    if (!external) return { href, external: false };
-    if (/^https?:\/\//i.test(href)) return { href, external: true };
-    return { href: `https://${href.replace(/^\/\//, "")}`, external: true };
 }
 
 // Full port of Fype-E-Commerce-UI's sections/Header.tsx (read-only design
@@ -268,7 +260,7 @@ export default function Header({
     );
 
     const renderAnnouncementContent = (block: SparkAnnouncementBarBlock) => {
-        const link = block.settings.link ? resolveAnnouncementLink(block.settings.link) : null;
+        const link = block.settings.link ? resolveLink(block.settings.link) : null;
         const content = (
             <div
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.text) || "Welcome to our store" }}

@@ -2,6 +2,7 @@
 
 import type { SparkRichTextBlock, SparkRichTextSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { linkAttrs, resolveLink } from "../resolveLink";
 
 interface RichTextProps {
     settings: SparkRichTextSettings;
@@ -103,7 +104,7 @@ export default function RichText({ settings, blocks, isEditorPreview = false, ac
                                 "Button",
                                 style === "Filled" ? (
                                     <a
-                                        href={link || "#"}
+                                        {...linkAttrs(resolveLink(link))}
                                         className="px-8 py-3.5 font-medium rounded-full transition-opacity hover:opacity-90 uppercase tracking-widest text-xs inline-block text-white cursor-pointer"
                                         style={{ backgroundColor: btnColor, color: btnTextColor || "#ffffff" }}
                                     >
@@ -111,7 +112,7 @@ export default function RichText({ settings, blocks, isEditorPreview = false, ac
                                     </a>
                                 ) : (
                                     <a
-                                        href={link || "#"}
+                                        {...linkAttrs(resolveLink(link))}
                                         className="px-8 py-3.5 bg-transparent border font-medium rounded-full transition-colors uppercase tracking-widest text-xs inline-block cursor-pointer"
                                         style={{ borderColor: btnColor, color: btnColor }}
                                         onMouseEnter={(e) => {

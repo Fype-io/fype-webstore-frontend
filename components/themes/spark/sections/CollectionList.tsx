@@ -52,12 +52,16 @@ export default function CollectionList({ settings, storeId, initialCollections =
     // What the list is built from. Changes live in the editor re-fetch; the SSR'd set is kept until then.
     const sourceKey = isGroup ? `group:${groupId}` : `pick:${shownIds.join(",")}`;
     const ssrKey = useRef(sourceKey).current;
+    // What the page was rendered with, kept so switching back to it in the editor restores it.
+    const ssrCollections = useRef(initialCollections).current;
 
     useEffect(() => {
-        if (sourceKey === ssrKey) return;
+        if (sourceKey === ssrKey) {
+            setCollections(ssrCollections);
+            return;
+        }
         if (isGroup) {
             if (!groupId) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor cleared the group
                 setCollections([]);
                 return;
             }

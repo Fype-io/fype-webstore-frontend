@@ -203,7 +203,7 @@ export default function SparkCollections({ initialConfig, shop, navItems, collec
                                 className={`group cursor-pointer block ${centerTiles ? CENTERED_TILE : ""}`}
                                 style={{ "--spark-name-hover": hoverColor } as React.CSSProperties}
                             >
-                                <div className="aspect-[4/3] bg-gray-50 rounded-2xl overflow-hidden mb-6 relative border border-gray-100 shadow-sm isolate">
+                                <div className="aspect-square bg-gray-50 rounded-2xl overflow-hidden mb-6 relative border border-gray-100 shadow-sm isolate">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={collection.thumbnailUrl || PLACEHOLDER_IMAGE}

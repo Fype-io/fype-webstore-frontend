@@ -195,12 +195,18 @@ export default function FeaturedCollection({
     const [total, setTotal] = useState<number>(initialTotal ?? initialProducts.length);
     const [collection, setCollection] = useState<CollectionSummary | null>(initialCollection);
     const ssrKey = useRef(`${settings.collection_id}:${settings.products_to_show}`).current;
+    // What the page was rendered with, kept so switching back to it in the editor restores it.
+    const ssr = useRef({ products: initialProducts, total: initialTotal ?? initialProducts.length, collection: initialCollection }).current;
 
     useEffect(() => {
         const key = `${settings.collection_id}:${settings.products_to_show}`;
-        if (key === ssrKey) return;
+        if (key === ssrKey) {
+            setProducts(ssr.products);
+            setTotal(ssr.total);
+            setCollection(ssr.collection);
+            return;
+        }
         if (!settings.collection_id) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- the editor cleared the collection
             setProducts([]);
             setTotal(0);
             setCollection(null);

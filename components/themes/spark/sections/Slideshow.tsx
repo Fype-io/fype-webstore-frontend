@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SparkSlideBlock, SparkSlideshowSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { resolveLink } from "../resolveLink";
+import { MOBILE_IMAGE_MEDIA, toSrcSetUrl, useMobileMediaFlips } from "../mobileImage";
 
 interface SlideshowProps {
     settings: SparkSlideshowSettings;
@@ -16,15 +18,6 @@ interface SlideshowProps {
     onSlideClick?: (id: string) => void;
 }
 
-function resolveSlideshowLink(value: string): { href: string; external: boolean } {
-    const href = value.trim();
-    if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
-    const external = /^(https?:\/\/|\/\/|www\.)/i.test(href) || /^[\w-]+(?:\.[\w-]+)+(?:\/|$)/i.test(href);
-    if (!external) return { href, external: false };
-    if (/^https?:\/\//i.test(href)) return { href, external: true };
-    return { href: `https://${href.replace(/^\/\//, "")}`, external: true };
-}
-
 // Full port of Fype-E-Commerce-UI's sections/Slideshow.tsx (read-only design
 // reference) — a second, independently-configurable carousel alongside
 // Image Banner/Banner Slide. "Sleek" renders as a contained rounded card;
@@ -34,6 +27,7 @@ function resolveSlideshowLink(value: string): { href: string; external: boolean 
 // intervals for these two carousels).
 export default function Slideshow({ settings, slides, isEditorPreview = false, activeSlideId = null, onSlideClick }: SlideshowProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const mobileMediaFlips = useMobileMediaFlips();
 
     const activeSlideIndex = activeSlideId ? slides.findIndex((s) => s.id === activeSlideId) : -1;
     const isSlideSelectedInEditor = isEditorPreview && activeSlideIndex !== -1;
@@ -53,7 +47,7 @@ export default function Slideshow({ settings, slides, isEditorPreview = false, a
     const safeIndex = isSlideSelectedInEditor ? activeSlideIndex : currentIndex >= slides.length ? 0 : currentIndex;
     const slide = slides[safeIndex];
     const s = slide.settings;
-    const buttonLink = s.button_link ? resolveSlideshowLink(s.button_link) : { href: "#", external: false };
+    const buttonLink = s.button_link ? resolveLink(s.button_link) : { href: "#", external: false };
 
     return (
         <section
@@ -86,9 +80,21 @@ export default function Slideshow({ settings, slides, isEditorPreview = false, a
                         transition={{ duration: 0.8 }}
                         className={`absolute inset-0 w-full h-full ${isEditorPreview ? "cursor-pointer" : ""}`}
                     >
-                        {s.image_url && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={s.image_url} alt={s.heading || "Slide"} className="absolute inset-0 w-full h-full object-cover object-center" />
+                        {s.image_url ? (
+                            // <picture> so each device downloads only its own image; keyed so a changed image or a
+                            // breakpoint crossing remounts it (see useMobileMediaFlips). `contents` keeps the <img>
+                            // positioned against the slide, as before.
+                            <picture className="contents" key={`${s.image_url}\n${s.mobile_image_url ?? ""}\n${mobileMediaFlips}`}>
+                                {s.mobile_image_url && <source media={MOBILE_IMAGE_MEDIA} srcSet={toSrcSetUrl(s.mobile_image_url)} />}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={s.image_url} alt={s.heading || "Slide"} className="absolute inset-0 w-full h-full object-cover object-center" />
+                            </picture>
+                        ) : (
+                            // Mobile image only: phones show it, wider screens keep the no-image look.
+                            s.mobile_image_url && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={s.mobile_image_url} alt={s.heading || "Slide"} className="md:hidden absolute inset-0 w-full h-full object-cover object-center" />
+                            )
                         )}
                         <div
                             className={isSleek ? "absolute inset-0" : "absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"}

@@ -6,6 +6,7 @@ import { getApi } from "@/lib/client-api";
 import { COLLECTION_LIST_DEFAULTS, type SparkCollectionListSettings } from "../sparkConfig";
 import { CENTERED_TILE, centeredRow, clampTileCount, collectionListColumns, safeHoverColor } from "../tileLayout";
 import type { CollectionSummary } from "@/types/storefront";
+import { linkAttrs, resolveLink } from "../resolveLink";
 
 interface CollectionListProps {
     settings: SparkCollectionListSettings;
@@ -114,7 +115,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
             <div className="flex items-end justify-between mb-12">
                 {settings.section_heading && <h2 className="font-semibold tracking-tight text-2xl md:text-3xl">{settings.section_heading}</h2>}
                 {settings.goto_label && !hasMore && (
-                    <a href={viewAllHref} className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors">
+                    <a {...linkAttrs(resolveLink(viewAllHref))} className="hidden md:inline-flex font-medium items-center gap-2 hover:text-gray-500 transition-colors">
                         {settings.goto_label}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14" />
@@ -148,7 +149,7 @@ export default function CollectionList({ settings, storeId, initialCollections =
             {hasMore && !isPlaceholder && (
                 <div className="mt-12 flex justify-center">
                     <a
-                        href={viewAllHref}
+                        {...linkAttrs(resolveLink(viewAllHref))}
                         className="spark-view-all inline-flex items-center gap-2 px-8 py-3.5 rounded-full uppercase tracking-widest text-xs font-medium"
                     >
                         {viewAllLabel}

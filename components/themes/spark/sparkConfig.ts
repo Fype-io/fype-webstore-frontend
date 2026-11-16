@@ -344,6 +344,8 @@ export interface SparkSlideshowSettings {
 
 export interface SparkSlideBlockSettings {
     image_url: string;
+    // Portrait image shown on phones (below the `md` breakpoint). Empty/missing = phones use image_url.
+    mobile_image_url?: string;
     overlay_color: string;
     overlay_opacity: number;
     text: string;

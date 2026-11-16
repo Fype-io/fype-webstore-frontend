@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import type { SparkBannerSlideBlock, SparkImageBannerSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { resolveLink } from "../resolveLink";
+import { MOBILE_IMAGE_MEDIA, toSrcSetUrl, useMobileMediaFlips } from "../mobileImage";
 
 interface BannerSliderProps {
     settings: SparkImageBannerSettings;
@@ -16,43 +18,6 @@ interface BannerSliderProps {
     isEditorPreview?: boolean;
     activeSlideId?: string | null;
     onSlideClick?: (id: string) => void;
-}
-
-// Phones get the slide's portrait image — max-width 767px is everything
-// below Tailwind's `md`, the breakpoint the rest of Spark switches layout at.
-// The editor's mobile preview is a 390px iframe, so it matches too.
-const MOBILE_IMAGE_MEDIA = "(max-width: 767px)";
-
-// srcset splits candidates on whitespace, so a URL with a raw space would be
-// cut short there (unlike `src`, which takes it whole).
-const toSrcSetUrl = (url: string) => url.replace(/\s/g, encodeURIComponent);
-
-// How many times the viewport has crossed MOBILE_IMAGE_MEDIA since mount —
-// 0 on the server and at hydration, so it never causes a mismatch. Used to
-// remount the <picture>: when its source starts or stops matching in place
-// (the editor's device toggle resizes the preview iframe without reloading
-// it), Chrome keeps painting the old image until the new one has fully
-// downloaded — seconds of the desktop image on a phone-sized screen. A fresh
-// <picture> picks the right image from the start instead.
-function useMobileMediaFlips() {
-    const [flips, setFlips] = useState(0);
-    useEffect(() => {
-        if (typeof window.matchMedia !== "function") return;
-        const query = window.matchMedia(MOBILE_IMAGE_MEDIA);
-        const onChange = () => setFlips((n) => n + 1);
-        query.addEventListener("change", onChange);
-        return () => query.removeEventListener("change", onChange);
-    }, []);
-    return flips;
-}
-
-function resolveBannerLink(value: string): { href: string; external: boolean } {
-    const href = value.trim();
-    if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
-    const external = /^(https?:\/\/|\/\/|www\.)/i.test(href) || /^[\w-]+(?:\.[\w-]+)+(?:\/|$)/i.test(href);
-    if (!external) return { href, external: false };
-    if (/^https?:\/\//i.test(href)) return { href, external: true };
-    return { href: `https://${href.replace(/^\/\//, "")}`, external: true };
 }
 
 // Full port of Fype-E-Commerce-UI's src/components/BannerSlider.tsx
@@ -130,7 +95,7 @@ export default function BannerSlider({ settings, slides, isEditorPreview = false
     const safeIndex = isSlideSelectedInEditor ? activeSlideIndex : currentIndex >= slides.length ? 0 : currentIndex;
     const slide = slides[safeIndex];
     const s = slide.settings;
-    const buttonLink = s.button_link ? resolveBannerLink(s.button_link) : { href: "#", external: false };
+    const buttonLink = s.button_link ? resolveLink(s.button_link) : { href: "#", external: false };
 
     // Match image and Original Size both let the image set the banner height. Image and
     // text share one grid cell, so a short image can't shrink the banner below its own

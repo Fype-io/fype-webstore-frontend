@@ -2,6 +2,7 @@
 
 import type { SparkColumnBlock, SparkMulticolumnSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { linkAttrs, resolveLink } from "../resolveLink";
 import { CENTERED_TILE, centeredRow, clampTileCount, multicolumnColumns } from "../tileLayout";
 
 // How large the image sits in its round frame, in %: 100 (or unset) fills it, lower shows more of the image
@@ -65,7 +66,7 @@ export default function Multicolumn({ settings, blocks, isEditorPreview = false,
                                 )}
                                 {block.settings.heading &&
                                     (block.settings.link ? (
-                                        <a href={block.settings.link} className="hover:underline transition-all group/link">
+                                        <a {...linkAttrs(resolveLink(block.settings.link))} className="hover:underline transition-all group/link">
                                             <h3
                                                 className="text-xl font-bold mb-3 text-gray-900 group-hover/link:text-blue-600 transition-colors"
                                                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(block.settings.heading) }}

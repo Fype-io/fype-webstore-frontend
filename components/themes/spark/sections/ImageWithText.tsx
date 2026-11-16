@@ -3,17 +3,9 @@
 import { Fragment } from "react";
 import type { SparkImageWithTextBlock, SparkImageWithTextSettings } from "../sparkConfig";
 import { sanitizeRichText } from "@/lib/sanitizeRichText";
+import { resolveLink } from "../resolveLink";
 
 type ButtonBlock = Extract<SparkImageWithTextBlock, { type: "Button" }>;
-
-function resolveImageWithTextLink(value: string): { href: string; external: boolean } {
-    const href = value.trim();
-    if (href === "/shop" || href === "/shops") return { href: "/products", external: false };
-    const external = /^(https?:\/\/|\/\/|www\.)/i.test(href) || /^[\w-]+(?:\.[\w-]+)+(?:\/|$)/i.test(href);
-    if (!external) return { href, external: false };
-    if (/^https?:\/\//i.test(href)) return { href, external: true };
-    return { href: `https://${href.replace(/^\/\//, "")}`, external: true };
-}
 
 interface ImageWithTextProps {
     settings: SparkImageWithTextSettings;
@@ -165,7 +157,7 @@ export default function ImageWithText({ settings, blocks, isEditorPreview = fals
                                         {item.blocks.map((block) => (
                                             <Fragment key={block.id}>
                                                 {(() => {
-                                                    const buttonLink = block.settings.link ? resolveImageWithTextLink(block.settings.link) : { href: "#", external: false };
+                                                    const buttonLink = block.settings.link ? resolveLink(block.settings.link) : { href: "#", external: false };
                                                     return wrapBlock(
                                                         "button",
                                                         block.id,

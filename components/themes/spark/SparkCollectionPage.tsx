@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import Header from "./Header";
+import CollectionBackLink from "./CollectionBackLink";
 import Footer from "./sections/Footer";
 import ProductCard from "./ProductCard";
 import Slideshow from "./sections/Slideshow";
@@ -197,12 +197,7 @@ export default function SparkCollectionPage({
                 )}
 
                 <div className="py-12 md:py-20 px-6 max-w-7xl mx-auto min-h-screen">
-                    <Link
-                        href="/collections"
-                        className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase hover:text-gray-500 transition-colors mb-10"
-                    >
-                        <span className="material-symbols-outlined text-base">arrow_back</span> Back to Collections
-                    </Link>
+                    <CollectionBackLink />
 
                     {bannerSlides.length > 0 && (
                         <div className="mb-16">

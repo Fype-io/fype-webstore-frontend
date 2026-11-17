@@ -15,7 +15,7 @@ import ShopNotFound from "@/components/shared/ShopNotFound";
 import { getRequestHost, getRequestOrigin } from "@/lib/request-host";
 import { isVerifiedEditorPreview } from "@/lib/editor-preview-server";
 import { productHref, VARIANT_PARAM } from "@/lib/product-url";
-import { buildProductJsonLd, jsonLdScript, metaDescription } from "@/lib/product-seo";
+import { buildProductJsonLd, jsonLdScript, metaDescription, shareImagePath, SHARE_IMAGE_SIZE, SHARE_IMAGE_TYPE } from "@/lib/product-seo";
 import { storeCurrencyCode } from "@/lib/currency";
 import { calculateProductTax } from "@/utils/taxCalculator";
 
@@ -96,15 +96,20 @@ export async function generateMetadata({ params }: ProductDetailsPageProps): Pro
     const description = metaDescription(product.description) || undefined;
     const allowIndexing = data.shop.settings?.seo?.allowIndexing !== false;
     // The canonical URL is the product's own page: never the id link or a ?variant= address.
-    const canonical = `${getRequestOrigin(await headers())}${productHref(product)}`;
-    const images = product.images?.[0] ? [{ url: product.images[0] }] : undefined;
+    const origin = getRequestOrigin(await headers());
+    const canonical = `${origin}${productHref(product)}`;
+    // Link previews get the primary image as a small JPEG of known size (share-image route), not the raw upload.
+    const sharePath = shareImagePath(product);
+    const images = sharePath
+        ? [{ url: `${origin}${sharePath}`, ...SHARE_IMAGE_SIZE, type: SHARE_IMAGE_TYPE, alt: product.name }]
+        : undefined;
 
     return {
         title,
         description,
         alternates: { canonical },
         openGraph: { title, description, url: canonical, siteName: storeName, type: "website", images },
-        twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => image.url) },
+        twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => ({ url: image.url, alt: image.alt })) },
         robots: { index: allowIndexing, follow: allowIndexing },
     };
 }

@@ -32,6 +32,7 @@ import { getShopByDomain, getTheme, getProductDetails } from "@/lib/storefront-a
 import { loadTheme } from "@/lib/theme";
 import { isVerifiedEditorPreview } from "@/lib/editor-preview-server";
 import ProductPage, { generateMetadata } from "../(storefront)/products/[slug]/page";
+import { shortHash } from "@/lib/product-seo";
 
 const product = {
     productId: "PROD-abc1234567",
@@ -148,9 +149,33 @@ describe("product page metadata", () => {
         expect(meta.description).toBe("A very blue shirt.");
         // the canonical is the slug page, not the id link and not a ?variant= address
         expect(meta.alternates?.canonical).toBe("http://shop.example.com/products/blue-shirt");
-        expect(meta.openGraph).toMatchObject({ title: "Blue Shirt - Shop", url: "http://shop.example.com/products/blue-shirt", images: [{ url: "https://img/1.jpg" }] });
+        expect(meta.openGraph).toMatchObject({ title: "Blue Shirt - Shop", url: "http://shop.example.com/products/blue-shirt" });
         expect(meta.twitter).toMatchObject({ card: "summary_large_image" });
         expect(meta.robots).toEqual({ index: true, follow: true });
+    });
+
+    it("shares the primary image through the share-image route, as a 1200x630 JPEG with the product name as alt", async () => {
+        setup({ ...product, images: ["https://img/1.webp", "https://img/2.webp"] });
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: "blue-shirt" }), searchParams: Promise.resolve({}) });
+        const shareUrl = `http://shop.example.com/products/blue-shirt/share-image?v=${shortHash("https://img/1.webp")}`;
+        expect(meta.openGraph?.images).toEqual([{ url: shareUrl, width: 1200, height: 630, type: "image/jpeg", alt: "Blue Shirt" }]);
+        expect(meta.twitter).toMatchObject({ card: "summary_large_image", images: [{ url: shareUrl, alt: "Blue Shirt" }] });
+    });
+
+    it("gives a changed primary image a new share-image URL", async () => {
+        setup({ ...product, images: ["https://img/new.jpg"] });
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: "blue-shirt" }), searchParams: Promise.resolve({}) });
+        const [image] = meta.openGraph?.images as { url: string }[];
+        expect(image!.url).toContain(`?v=${shortHash("https://img/new.jpg")}`);
+        expect(shortHash("https://img/new.jpg")).not.toBe(shortHash("https://img/1.jpg"));
+    });
+
+    it("has no image tags and a summary card when the product has no image", async () => {
+        setup({ ...product, images: [] });
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: "blue-shirt" }), searchParams: Promise.resolve({}) });
+        expect(meta.openGraph?.images).toBeUndefined();
+        expect(meta.twitter).toMatchObject({ card: "summary" });
+        expect((meta.twitter as { images?: unknown }).images).toBeUndefined();
     });
 
     it("follows the store's indexing setting", async () => {

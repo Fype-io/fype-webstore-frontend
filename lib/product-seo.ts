@@ -1,4 +1,5 @@
 import type { ProductDetail, ProductVariant } from "@/types/storefront";
+import { productHref } from "@/lib/product-url";
 
 /** Plain text for a meta description: tags removed, whitespace collapsed, cut at a word (about 155 characters). */
 export function metaDescription(html: string | null | undefined, max = 155): string {
@@ -78,4 +79,29 @@ export function buildProductJsonLd({ product, variants, url, currency, price, ma
 /** JSON for an inline <script type="application/ld+json">: `<` escaped so the data can't close the tag. */
 export function jsonLdScript(data: unknown): string {
     return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/**
+ * The image link previews (WhatsApp, Facebook, X, LinkedIn...) show for a product: its primary image,
+ * converted by the share-image route into a JPEG of this size, the product fitted inside on white.
+ * Uploads can be up to 10 MB and WebP/AVIF/SVG, which WhatsApp in particular won't show.
+ */
+export const SHARE_IMAGE_SIZE = { width: 1200, height: 630 } as const;
+export const SHARE_IMAGE_TYPE = "image/jpeg";
+
+/** Short stable hash (FNV-1a, base 36): a changed image gets a new share-image URL, so crawlers don't keep the old one. */
+export function shortHash(text: string): string {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+/** Path of the product's share image, or null when it has no image (no image tag then). */
+export function shareImagePath(product: { productId: string; slug?: string | null; images?: string[] | null }): string | null {
+    const primary = product.images?.[0];
+    if (!primary) return null;
+    return `${productHref(product)}/share-image?v=${shortHash(primary)}`;
 }

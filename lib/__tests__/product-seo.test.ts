@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProductDetail, ProductVariant } from "@/types/storefront";
-import { buildProductJsonLd, jsonLdScript, metaDescription } from "../product-seo";
+import { buildProductJsonLd, jsonLdScript, metaDescription, shareImagePath, shortHash } from "../product-seo";
 
 const base = {
     productId: "PROD-1",
@@ -106,5 +106,30 @@ describe("jsonLdScript", () => {
         const out = jsonLdScript({ name: "</script><script>alert(1)</script>" });
         expect(out).not.toContain("<");
         expect(JSON.parse(out).name).toBe("</script><script>alert(1)</script>");
+    });
+});
+
+describe("shareImagePath", () => {
+    it("points at the product's share-image route, versioned by its primary image", () => {
+        expect(shareImagePath({ productId: "PROD-1", slug: "blue-shirt", images: ["https://img/1.webp", "https://img/2.webp"] })).toBe(
+            `/products/blue-shirt/share-image?v=${shortHash("https://img/1.webp")}`
+        );
+    });
+
+    it("uses the product id for a product with no slug yet", () => {
+        expect(shareImagePath({ productId: "PROD-1", slug: null, images: ["https://img/1.jpg"] })).toMatch(/^\/products\/PROD-1\/share-image\?v=/);
+    });
+
+    it("is null when the product has no image", () => {
+        expect(shareImagePath({ productId: "PROD-1", slug: "x", images: [] })).toBeNull();
+        expect(shareImagePath({ productId: "PROD-1", slug: "x" })).toBeNull();
+    });
+});
+
+describe("shortHash", () => {
+    it("is stable, URL-safe, and differs for different images", () => {
+        expect(shortHash("https://img/1.jpg")).toBe(shortHash("https://img/1.jpg"));
+        expect(shortHash("https://img/1.jpg")).toMatch(/^[0-9a-z]+$/);
+        expect(shortHash("https://img/1.jpg")).not.toBe(shortHash("https://img/2.jpg"));
     });
 });

@@ -9,6 +9,7 @@ import { isSignedOutSession, getAuthToken } from "@/lib/client-api";
 import { fetchUserProfile, fetchCart, fetchGuestCart, fetchWishlist, markAuthChecked } from "@/redux/slices/userSlice";
 import { isEditorPreview } from "@/lib/editor-preview";
 import { StoreCurrencyProvider } from "./StoreCurrency";
+import CompleteProfileModal from "./CompleteProfileModal";
 
 function AuthBootstrap({ storeId }: { storeId: string }) {
     const dispatch = useAppDispatch();
@@ -62,6 +63,16 @@ function CustomerSessionHydrate({ storeId }: { storeId: string }) {
     return null;
 }
 
+// A signed-in shopper with no name on their account is asked for one on every
+// page until they add it or sign out (CompleteProfileModal). Based on the profile
+// loaded above, so it also catches accounts made before sign-in required a name.
+function CompleteProfilePrompt({ storeId }: { storeId: string }) {
+    const { user, isAuthenticated, authChecked } = useAppSelector((state) => state.user);
+    if (!authChecked || !isAuthenticated || !user || (user.firstName || "").trim()) return null;
+    if (isEditorPreview()) return null;
+    return <CompleteProfileModal key={user.customerId} storeId={storeId} user={user} />;
+}
+
 interface ProvidersProps {
     storeId?: string;
     /** The store's currency (public settings `currency`); prices show in it. */
@@ -81,6 +92,7 @@ export default function Providers({ storeId, currency, children }: ProvidersProp
             {storeId && <AuthBootstrap storeId={storeId} />}
             {storeId && <CustomerSessionHydrate storeId={storeId} />}
             <StoreCurrencyProvider currency={currency}>{children}</StoreCurrencyProvider>
+            {storeId && <CompleteProfilePrompt storeId={storeId} />}
         </Provider>
     );
 }

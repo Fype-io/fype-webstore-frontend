@@ -8,10 +8,9 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CheckCircle2, Mail, Phone, Send, X } from "lucide-react";
 import { PhoneInput } from "@/components/checkout/ui/PhoneInput";
-import { splitName } from "@/components/checkout/checkoutUtils";
 import { fillOtp } from "@/components/shared/otpInput";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { sendOTP, verifyOTP, completeRegistration, clearAuthError, getPlatform } from "@/redux/slices/userSlice";
+import { sendOTP, verifyOTP, clearAuthError, getPlatform } from "@/redux/slices/userSlice";
 import { isEditorPreview } from "@/lib/editor-preview";
 
 interface AuthModalProps {
@@ -22,7 +21,7 @@ interface AuthModalProps {
     platformName?: string;
 }
 
-type Step = "selection" | "input" | "otp" | "profile" | "success";
+type Step = "selection" | "input" | "otp" | "success";
 type Method = "email" | "phone";
 type Channel = "email" | "whatsapp" | "sms";
 
@@ -56,7 +55,6 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [isPhoneValid, setIsPhoneValid] = useState(false);
-    const [name, setName] = useState("");
     const [otp, setOtp] = useState(["", "", "", ""]);
     const [localError, setLocalError] = useState("");
     const [resendCooldown, setResendCooldown] = useState(0);
@@ -78,7 +76,6 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
         setEmail("");
         setPhone("");
         setIsPhoneValid(false);
-        setName("");
         setOtp(["", "", "", ""]);
         setLocalError("");
         setResendCooldown(0);
@@ -109,7 +106,7 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
     const [prevAuthChannels, setPrevAuthChannels] = useState(authChannels);
     if (authChannels !== prevAuthChannels) {
         setPrevAuthChannels(authChannels);
-        if (isOpen && step !== "otp" && step !== "profile" && step !== "success") {
+        if (isOpen && step !== "otp" && step !== "success") {
             const next = initialStepForChannels();
             setStep(next.step);
             setMethod(next.method);
@@ -129,14 +126,9 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
 
     useEffect(() => {
         if (!isAuthenticated || !isOpen || !user) return;
-        // Name/profile is only for a brand-new customer. Existing shoppers
-        // (phone or email) should land in the account even if the other
-        // contact method is missing.
-        if (user.isNew) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- advance the flow once login lands in the store
-            setStep("profile");
-            return;
-        }
+        // Signed in. A shopper whose account has no name is asked for it by
+        // CompleteProfileModal (mounted in Providers) once this closes.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- advance the flow once login lands in the store
         setStep("success");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, user, isOpen]);
@@ -281,29 +273,6 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
         }
     };
 
-    const handleCompleteRegistration = async () => {
-        if (!storeId) return;
-        if (!name.trim() || !isEmailValid || !isPhoneValid) return;
-        setLocalError("");
-        try {
-            const { firstName, lastName } = splitName(name);
-            await dispatch(
-                completeRegistration({
-                    storeId,
-                    registrationData: {
-                        firstName,
-                        lastName,
-                        email,
-                        phone: phone.replace(/\s/g, ""),
-                    },
-                })
-            ).unwrap();
-            setStep("success");
-        } catch (err: unknown) {
-            setLocalError(typeof err === "string" ? err : "Couldn't finish signing you up. Please try again.");
-        }
-    };
-
     const handleResendOTP = async () => {
         if (resendCooldown > 0) return;
         setOtp(["", "", "", ""]);
@@ -313,7 +282,6 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
     };
 
     const canSend = method === "email" ? isEmailValid : isPhoneValid;
-    const canCompleteProfile = Boolean(name.trim() && isEmailValid && phone && isPhoneValid);
     const showBack = step === "input" || step === "otp";
 
     const subtitle =
@@ -323,15 +291,13 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
               ? `via ${method}`
               : step === "otp"
                 ? "Verification Code"
-                : step === "profile"
-                  ? "Complete your profile"
-                  : "";
+                : "";
 
     return (
         <div
             className="fixed inset-0 z-[70] flex flex-col sm:flex-row items-end sm:items-center justify-center font-sans bg-black/40 sm:p-4"
             onClick={(e) => {
-                if (e.target === e.currentTarget && !authLoading && step !== "profile") onClose();
+                if (e.target === e.currentTarget && !authLoading) onClose();
             }}
         >
             <div className="bg-white w-full sm:max-w-[440px] rounded-t-[32px] sm:rounded-2xl shadow-2xl z-10 relative flex flex-col mt-auto sm:mt-0 max-h-[95vh] overflow-visible">
@@ -522,80 +488,6 @@ export default function AuthModal({ isOpen, onClose, storeId, shopName = "Store"
                                     {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
                                 </button>
                             </div>
-                        </div>
-                    )}
-
-                    {step === "profile" && (
-                        <div className="flex-1 flex flex-col">
-                            <div className="flex flex-col gap-3 sm:gap-4 mb-5 sm:mb-6">
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                                        Full Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        placeholder="Enter your full name"
-                                        disabled={authLoading}
-                                        className="w-full bg-white border border-gray-200 rounded-[12px] px-4 h-[44px] text-[15px] sm:text-[14px] text-gray-900 outline-none focus:border-gray-900 transition-all shadow-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                                        <label className="block text-[13px] font-semibold text-gray-700">Email Address</label>
-                                        {method === "email" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setStep("input")}
-                                                className="text-[12px] font-bold text-blue-600 hover:underline"
-                                            >
-                                                Change
-                                            </button>
-                                        )}
-                                    </div>
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Enter your email address"
-                                        disabled={method === "email" || authLoading}
-                                        className={`w-full border rounded-[12px] px-4 h-[44px] text-[15px] sm:text-[14px] text-gray-900 outline-none focus:border-gray-900 transition-all shadow-sm ${
-                                            email && !isEmailValid ? "border-red-300 bg-red-50/10" : "border-gray-200"
-                                        } ${method === "email" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : "bg-white"}`}
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                                        <label className="block text-[13px] font-semibold text-gray-700">Phone Number</label>
-                                        {method === "phone" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setStep("input")}
-                                                className="text-[12px] font-bold text-blue-600 hover:underline"
-                                            >
-                                                Change
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className={method === "phone" ? "opacity-70 pointer-events-none grayscale" : ""}>
-                                        <PhoneInput value={phone} onChange={setPhone} onValidityChange={setIsPhoneValid} />
-                                    </div>
-                                </div>
-                            </div>
-                            {displayError && <ErrorText message={displayError} />}
-                            <button
-                                type="button"
-                                onClick={handleCompleteRegistration}
-                                disabled={authLoading || !canCompleteProfile}
-                                className={`w-full h-[44px] rounded-[12px] flex items-center justify-center gap-2 font-bold text-[15px] transition-all duration-200 mt-auto sm:mt-4 ${
-                                    canCompleteProfile && !authLoading
-                                        ? "bg-[#191919] hover:bg-black text-white shadow-[0_12px_36px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-                                        : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                }`}
-                            >
-                                {authLoading ? "Saving..." : "Complete Profile"}
-                            </button>
                         </div>
                     )}
 
